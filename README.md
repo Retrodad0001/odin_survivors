@@ -1,6 +1,6 @@
 # Learning Odin and the SDL3 GPU
 
-Learning the Odin language and SDL3 by building a simplified 2D RTS game and sharing it with the community. I will use the SDL 3D GPU with a Data-Oriented Design approach.
+Learning the Odin language and SDL3 by building a simplified 2D survovors game and sharing it with the community. I will use the SDL 3D GPU with a Data-Oriented Design approach.
 
 Other libs used : Dear ImGui and BOX2D
 
@@ -8,6 +8,8 @@ Other libs used : Dear ImGui and BOX2D
 
 Graphics were Created/distributed by Kenney (<www.kenney.nl>)
 See license info License.txt
+
+![spritesheet](https://github.com/user-attachments/assets/d9c5bacd-f386-4744-b4e2-2b97ab19de60)
 
 ## Learning Resources
 
