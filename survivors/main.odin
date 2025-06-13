@@ -158,20 +158,22 @@ main :: proc() {
 		}
 
 		//begin the render pass 
-		color_target := sdl.GPUColorTargetInfo {
+		color_target_info := sdl.GPUColorTargetInfo {//TODO understand all the steps in detail see docs
 			texture     = swapchain_texture,
 			load_op     = .CLEAR,
-			clear_color = {0, 0.2, 0.4, 1},
+			clear_color = {0, 0.2, 0.2, 1},
 			store_op    = .STORE,
 		}
 
-		render_pass := sdl.BeginGPURenderPass(command_buffer, &color_target, 1, nil)
+		render_pass := sdl.BeginGPURenderPass(command_buffer, &color_target_info, 1, nil)
 
 
 		//render stuff
 
 
 		//fimnish the first render pass
+
+		sdl.EndGPURenderPass(render_pass)
 		//TODO can do more render passes if needed, investigate why this is needed to understand 
 
 		//submit the command buffer
@@ -180,6 +182,12 @@ main :: proc() {
 			log.error("ODIN SURVIVORS | SDL_SubmitGPUCommandBuffer failed: {}", sdl.GetError())
 			break game_loop
 		}
+
+
+
+
+
+
 
 		//frame rate limiting
 		frame_time := sdl.GetTicks() - last_ticks
