@@ -32,6 +32,10 @@ build/
 #wwwroot/
 demo
 
+# shader stuff
+shader.frag
+shader.vert
+
 # MSTest test Results
 [Tt]est[Rr]esult*/
 [Bb]uild[Ll]og.*

@@ -6,6 +6,8 @@ import "core:mem"
 import sdl "vendor:sdl3"
 
 
+//TODO use SDL shader tool instead of Vulkan shader compiler
+
 sdl_log :: proc "c" (
 	userdata: rawptr,
 	category: sdl.LogCategory,
@@ -159,7 +161,7 @@ main :: proc() {
 		delta_time: f32 = f32(new_ticks - last_ticks) / 1000
 
 		game_update(delta_time)
-
+		game_render() //TODO move render code to this proc
 
 		//get some command buffer from the gpu device
 		command_buffer := sdl.AcquireGPUCommandBuffer(gpu_device)
@@ -190,10 +192,18 @@ main :: proc() {
 			store_op    = .STORE,
 		}
 
-		//TODO can do more render passes if needed, investigate why this is needed to understand 
-		render_pass := sdl.BeginGPURenderPass(command_buffer, &color_target_info, 1, nil)
+		//BUG: Validation layers not found, continuing without validation
 
-		//drawn stuff
+		//TODO can do more render passes if needed, investigate why this is needed to understand 
+		TOTAL_COLOR_TARGETS: u32 : 1
+		render_pass := sdl.BeginGPURenderPass(
+			command_buffer,
+			&color_target_info,
+			TOTAL_COLOR_TARGETS,
+			nil,
+		)
+
+		//drawn stuff here
 
 		sdl.EndGPURenderPass(render_pass)
 
