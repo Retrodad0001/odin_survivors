@@ -33,15 +33,15 @@ main :: proc() {
 	context.logger = log.create_console_logger()
 	log.debug("starting game")
 
-	
-	if ODIN_DEBUG {
+
+	if (ODIN_DEBUG) {
 		log.debug("ODIN SURVIVORS | DEBUG enabled")
 	} else {
 		log.debug("ODIN SURVIVORS | DEBUG disabled")
 	}
 
 
-	if ODIN_DEBUG {
+	if (ODIN_DEBUG) {
 		log.debug("ODIN SURVIVORS | Memory tracking enabled")
 
 		track: mem.Tracking_Allocator
@@ -100,13 +100,21 @@ main :: proc() {
 	}
 
 	//create gpu device
-	should_debug :: true //TODO set this only true when in debug mode else false
+	should_debug := true //TODO set this only true when in debug mode else false
+	if (ODIN_DEBUG) {
+		log.debug("ODIN SURVIVORS | GPU debug enabled")
+	} else {
+		should_debug = false
+		log.debug("ODIN SURVIVORS | GPU debug disabled")
+	}
+
 	gpu_device: ^sdl.GPUDevice = sdl.CreateGPUDevice({.SPIRV}, should_debug, nil)
 	defer sdl.DestroyGPUDevice(gpu_device)
 	if gpu_device == nil {
 		log.error("ODIN SURVIVORS | SDL_CreateGPUDevice failed: {}", sdl.GetError())
 		return
 	}
+
 
 	//claim the window for this gpu_device
 	claim_window_OK: bool = sdl.ClaimWindowForGPUDevice(gpu_device, window)
