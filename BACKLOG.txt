@@ -3,8 +3,8 @@
 v.1.0
 
 - setup the renderpipeline
-    //TODO setup basic rendering pipeline and show triangle
-    - hook-up ImGui and show FPS
+    DONE - setup basic rendering pipeline and show blue triangle
+    //TODO - hook-up ImGui and show FPS and clean up stuff
     - setup flamegraph
     - setup draw tooling
     - enable batching

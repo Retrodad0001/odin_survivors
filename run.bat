@@ -13,7 +13,9 @@ echo.
 echo compile shaders
 REM Make sure you have glslc installed and in your PATH (install the Vulkan SDK first)
 glslc shader.glsl.frag -o shader.frag
+IF %ERRORLEVEL% NEQ 0 exit /b 1
 glslc shader.glsl.vert -o shader.vert
+IF %ERRORLEVEL% NEQ 0 exit /b 1
 
 echo run test
 odin test survivors
@@ -21,6 +23,7 @@ odin test survivors
 echo create debug build directory
 if exist %OUT_DIR% rmdir /s /q %OUT_DIR%
 mkdir %OUT_DIR%
+IF %ERRORLEVEL% NEQ 0 exit /b 1
 
 echo create debug build
 odin build survivors -out:%OUT_DIR%\survivors_debug.exe -strict-style -vet -debug

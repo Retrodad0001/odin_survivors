@@ -6,7 +6,8 @@ import "core:mem"
 import sdl "vendor:sdl3"
 
 
-//TODO use SDL shader tool instead of Vulkan shader compiler
+shader_code_fraq := #load("..//shader.frag")
+shader_code_vert := #load("..//shader.vert")
 
 sdl_log :: proc "c" (
 	userdata: rawptr,
@@ -134,13 +135,50 @@ main :: proc() {
 		return
 	}
 
+	//TOOD enable me later entity_manager: EntityManager = entity_create_entity_manager()
+
 	TARGET_FPS: u64 : 60
 	TARGET_FRAME_TIME: u64 : 1000 / TARGET_FPS
 	SCALE_FACTOR: f32 : 20.0
 
-	//TOOD enable me later entity_manager: EntityManager = entity_create_entity_manager()
-
 	last_ticks := sdl.GetTicks()
+
+	log.debug("ODIN SURVIVORS | start Loading shaders")
+	gpu_shader_vertex: ^sdl.GPUShader = load_shader(shader_code_vert, gpu_device, .VERTEX)
+	if gpu_shader_vertex == nil {
+		log.error("ODIN SURVIVORS | SDL_CreateGPUShader (vertex) failed: {}", sdl.GetError())
+		return
+	}
+
+	gpu_shader_fragment: ^sdl.GPUShader = load_shader(shader_code_fraq, gpu_device, .FRAGMENT)
+	if gpu_shader_fragment == nil {
+		log.error("ODIN SURVIVORS | SDL_CreateGPUShader (fragment) failed: {}", sdl.GetError())
+		return
+	}
+	log.debug("ODIN SURVIVORS | end Loading shaders")
+
+	graphics_pipeline_create_info := sdl.GPUGraphicsPipelineCreateInfo {
+		vertex_shader = gpu_shader_vertex,
+		fragment_shader = gpu_shader_fragment,
+		primitive_type = .TRIANGLELIST,
+		target_info = {
+			num_color_targets = 1,
+			color_target_descriptions = &(sdl.GPUColorTargetDescription {
+					format = sdl.GetGPUSwapchainTextureFormat(gpu_device, window),
+				}),
+		},
+	}
+
+	//create the pipeline
+	pipeline := sdl.CreateGPUGraphicsPipeline(gpu_device, graphics_pipeline_create_info)
+	if pipeline == nil {
+		log.error("ODIN SURVIVORS | SDL_CreateGPUGraphicsPipeline failed: {}", sdl.GetError())
+		return
+	}
+	defer sdl.ReleaseGPUGraphicsPipeline(gpu_device, pipeline)
+
+	sdl.ReleaseGPUShader(gpu_device, gpu_shader_vertex)
+	sdl.ReleaseGPUShader(gpu_device, gpu_shader_fragment)
 
 	game_loop: for {
 
@@ -161,7 +199,6 @@ main :: proc() {
 		delta_time: f32 = f32(new_ticks - last_ticks) / 1000
 
 		game_update(delta_time)
-		game_render() //TODO move render code to this proc
 
 		//get some command buffer from the gpu device
 		command_buffer := sdl.AcquireGPUCommandBuffer(gpu_device)
@@ -183,29 +220,25 @@ main :: proc() {
 			break game_loop
 		}
 
-		CLEAR_COLOR: sdl.FColor : {0, 0.2, 0.2, 1}
-		//begin the render pass 
-		color_target_info := sdl.GPUColorTargetInfo { 	//TODO understand all the steps in detail see docs
-			texture     = swapchain_texture,
-			load_op     = .CLEAR,
-			clear_color = CLEAR_COLOR,
-			store_op    = .STORE,
+
+		if (swapchain_texture != nil) {
+			CLEAR_COLOR: sdl.FColor : {0, 0.2, 0.2, 1}
+			//begin the render pass 
+			color_target_info := sdl.GPUColorTargetInfo { 	//TODO understand all the steps in detail see docs
+				texture     = swapchain_texture,
+				load_op     = .CLEAR,
+				clear_color = CLEAR_COLOR,
+				store_op    = .STORE,
+			}
+
+			game_render(command_buffer, pipeline, &color_target_info)
+
+		} else {
+			log.debug(
+				"ODIN SURVIVORS | swapchain_texture is nil ---> not rendering anything !!, maybe ui is minimized?",
+			)
 		}
 
-		//BUG: Validation layers not found, continuing without validation
-
-		//TODO can do more render passes if needed, investigate why this is needed to understand 
-		TOTAL_COLOR_TARGETS: u32 : 1
-		render_pass := sdl.BeginGPURenderPass(
-			command_buffer,
-			&color_target_info,
-			TOTAL_COLOR_TARGETS,
-			nil,
-		)
-
-		//drawn stuff here
-
-		sdl.EndGPURenderPass(render_pass)
 
 		//submit the command buffer
 		submit_command_buffer_OK: bool = sdl.SubmitGPUCommandBuffer(command_buffer)
@@ -223,24 +256,36 @@ main :: proc() {
 		last_ticks = new_ticks
 	}
 
-	// Cleanup
-	//TODO Cleanup, and check if all resources are released every frame or in my context onze per game
-	/*
-SDL_ReleaseGPUTexture(gpu, model.texture);
-SDL_ReleaseGPUBuffer(gpu, model.vertex_buf);
-SDL_ReleaseGPUBuffer(gpu, model.index_buf);
-SDL_ReleaseGPUSampler(gpu, sampler);
-SDL_ReleaseGPUGraphicsPipeline(gpu, pipeline);
-SDL_ReleaseGPUTexture(gpu, depth_texture);
-
-
-*/
-}
-
-game_render :: proc() {
-
 }
 
 game_update :: proc(delta_time: f32) {
 
+}
+
+game_render :: proc(
+	command_buffer: ^sdl.GPUCommandBuffer,
+	pipeline: ^sdl.GPUGraphicsPipeline,
+	color_target_info: ^sdl.GPUColorTargetInfo,
+) {
+	//TODO can do more render passes if needed, investigate why this is needed to understand 
+	render_pass := sdl.BeginGPURenderPass(command_buffer, color_target_info, 1, nil)
+	sdl.BindGPUGraphicsPipeline(render_pass, pipeline)
+	sdl.DrawGPUPrimitives(render_pass, 3, 1, 0, 0)
+	sdl.EndGPURenderPass(render_pass)
+}
+
+@(private="file")
+load_shader :: proc(
+	shader_code: []u8,
+	gpu_device: ^sdl.GPUDevice,
+	stage: sdl.GPUShaderStage,
+) -> ^sdl.GPUShader {
+	shader_create_info := sdl.GPUShaderCreateInfo {
+		code_size  = len(shader_code),
+		code       = raw_data(shader_code),
+		entrypoint = "main",
+		format     = {.SPIRV},
+		stage      = stage,
+	}
+	return sdl.CreateGPUShader(gpu_device, shader_create_info)
 }
