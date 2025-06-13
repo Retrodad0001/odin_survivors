@@ -2,12 +2,20 @@ package survivors
 
 import "base:runtime"
 import "core:log"
+import "core:math/linalg"
 import "core:mem"
 import sdl "vendor:sdl3"
 
 
 shader_code_fraq := #load("..//shader.frag")
 shader_code_vert := #load("..//shader.vert")
+
+
+//data for the uniform buffer object (UBO)
+//TODO handle that max size is 16
+UBO :: struct  {
+	mvp: matrix[4, 4]f32,
+}
 
 sdl_log :: proc "c" (
 	userdata: rawptr,
@@ -111,6 +119,26 @@ main :: proc() {
 		return
 	}
 
+	window_size: [2]i32
+	ok := sdl.GetWindowSize(window, &window_size.x, &window_size.y)
+
+	if ok == false {
+		log.error("ODIN SURVIVORS | SDL_GetWindowSize failed: {}", sdl.GetError())
+		return
+	}
+
+	projection_matrix := linalg.matrix4_perspective_f32(
+		 linalg.to_radians(f32(70.0)),
+		f32(window_size.x) / f32(window_size.y),
+		0.0001,
+		1000,
+	)
+
+	rotation :f32 = 0.0
+
+	
+
+
 	//create gpu device
 	should_debug := true
 	if (ODIN_DEBUG) {
@@ -126,7 +154,6 @@ main :: proc() {
 		log.error("ODIN SURVIVORS | SDL_CreateGPUDevice failed: {}", sdl.GetError())
 		return
 	}
-
 
 	//claim the window for this gpu_device
 	claim_window_OK: bool = sdl.ClaimWindowForGPUDevice(gpu_device, window)
@@ -144,13 +171,13 @@ main :: proc() {
 	last_ticks := sdl.GetTicks()
 
 	log.debug("ODIN SURVIVORS | start Loading shaders")
-	gpu_shader_vertex: ^sdl.GPUShader = load_shader(shader_code_vert, gpu_device, .VERTEX)
+	gpu_shader_vertex: ^sdl.GPUShader = load_shader(shader_code_vert, gpu_device, .VERTEX, 1)
 	if gpu_shader_vertex == nil {
 		log.error("ODIN SURVIVORS | SDL_CreateGPUShader (vertex) failed: {}", sdl.GetError())
 		return
 	}
 
-	gpu_shader_fragment: ^sdl.GPUShader = load_shader(shader_code_fraq, gpu_device, .FRAGMENT)
+	gpu_shader_fragment: ^sdl.GPUShader = load_shader(shader_code_fraq, gpu_device, .FRAGMENT, 0)
 	if gpu_shader_fragment == nil {
 		log.error("ODIN SURVIVORS | SDL_CreateGPUShader (fragment) failed: {}", sdl.GetError())
 		return
@@ -198,8 +225,13 @@ main :: proc() {
 		new_ticks := sdl.GetTicks()
 		delta_time: f32 = f32(new_ticks - last_ticks) / 1000
 
-		game_update(delta_time)
 
+		model_view_matrix := linalg.matrix4_translate_f32({0,0,-5})* linalg.matrix4_rotate_f32(rotation, {0,1,0})
+	
+		rotation += 1.5 * delta_time
+
+		game_update(delta_time)
+ 
 		//get some command buffer from the gpu device
 		command_buffer := sdl.AcquireGPUCommandBuffer(gpu_device)
 
@@ -220,6 +252,9 @@ main :: proc() {
 			break game_loop
 		}
 
+		ubo := UBO {
+			mvp = projection_matrix * model_view_matrix, 
+		}
 
 		if (swapchain_texture != nil) {
 			CLEAR_COLOR: sdl.FColor : {0, 0.2, 0.2, 1}
@@ -231,7 +266,16 @@ main :: proc() {
 				store_op    = .STORE,
 			}
 
-			game_render(command_buffer, pipeline, &color_target_info)
+			//game_render(command_buffer, pipeline, &color_target_info, &ubo)
+
+			//TODO can do more render passes if needed, investigate why this is needed to understand 
+			render_pass := sdl.BeginGPURenderPass(command_buffer, &color_target_info, 1, nil)
+			sdl.BindGPUGraphicsPipeline(render_pass, pipeline)
+			sdl.PushGPUVertexUniformData(command_buffer, 0, &ubo, size_of(ubo))
+			//vertex attributes
+			//uniform data
+			sdl.DrawGPUPrimitives(render_pass, 3, 1, 0, 0)
+			sdl.EndGPURenderPass(render_pass)
 
 		} else {
 			log.debug(
@@ -262,30 +306,31 @@ game_update :: proc(delta_time: f32) {
 
 }
 
+//TODO move stuff here when i can draw the player
 game_render :: proc(
 	command_buffer: ^sdl.GPUCommandBuffer,
 	pipeline: ^sdl.GPUGraphicsPipeline,
 	color_target_info: ^sdl.GPUColorTargetInfo,
+	ubo: ^UBO,
 ) {
-	//TODO can do more render passes if needed, investigate why this is needed to understand 
-	render_pass := sdl.BeginGPURenderPass(command_buffer, color_target_info, 1, nil)
-	sdl.BindGPUGraphicsPipeline(render_pass, pipeline)
-	sdl.DrawGPUPrimitives(render_pass, 3, 1, 0, 0)
-	sdl.EndGPURenderPass(render_pass)
+
 }
 
-@(private="file")
+@(private = "file")
 load_shader :: proc(
 	shader_code: []u8,
 	gpu_device: ^sdl.GPUDevice,
 	stage: sdl.GPUShaderStage,
+	num_uniform_b: u32,
 ) -> ^sdl.GPUShader {
 	shader_create_info := sdl.GPUShaderCreateInfo {
-		code_size  = len(shader_code),
-		code       = raw_data(shader_code),
-		entrypoint = "main",
-		format     = {.SPIRV},
-		stage      = stage,
+		code_size           = len(shader_code),
+		code                = raw_data(shader_code),
+		entrypoint          = "main",
+		format              = {.SPIRV},
+		stage               = stage,
+		num_uniform_buffers = num_uniform_b,
 	}
+
 	return sdl.CreateGPUShader(gpu_device, shader_create_info)
 }
