@@ -73,6 +73,15 @@ main :: proc() {
 		log.debug("ODIN SURVIVORS | Memory tracking disabled")
 	}
 
+	if (ODIN_DEBUG) {
+		log.debug("ODIN SURVIVORS | SDL logging level is TRACE")
+		sdl.SetLogPriorities(sdl.LogPriority.TRACE)
+	} else {
+
+		log.debug("ODIN SURVIVORS | SDL logging level is WARN")
+		sdl.SetLogPriorities(sdl.LogPriority.WARN)
+	}
+
 	//initialize SDL
 	SDL_INIT_FLAGS :: sdl.INIT_VIDEO
 	if (sdl.Init(SDL_INIT_FLAGS)) == false {
@@ -100,7 +109,7 @@ main :: proc() {
 	}
 
 	//create gpu device
-	should_debug := true //TODO set this only true when in debug mode else false
+	should_debug := true
 	if (ODIN_DEBUG) {
 		log.debug("ODIN SURVIVORS | GPU debug enabled")
 	} else {
@@ -181,16 +190,12 @@ main :: proc() {
 			store_op    = .STORE,
 		}
 
+		//TODO can do more render passes if needed, investigate why this is needed to understand 
 		render_pass := sdl.BeginGPURenderPass(command_buffer, &color_target_info, 1, nil)
 
-
-		//render stuff
-
-
-		//fimnish the first render pass
+		//drawn stuff
 
 		sdl.EndGPURenderPass(render_pass)
-		//TODO can do more render passes if needed, investigate why this is needed to understand 
 
 		//submit the command buffer
 		submit_command_buffer_OK: bool = sdl.SubmitGPUCommandBuffer(command_buffer)
@@ -209,7 +214,7 @@ main :: proc() {
 	}
 
 	// Cleanup
-	//TODO Cleanup
+	//TODO Cleanup, and check if all resources are released every frame or in my context onze per game
 	/*
 SDL_ReleaseGPUTexture(gpu, model.texture);
 SDL_ReleaseGPUBuffer(gpu, model.vertex_buf);
@@ -217,9 +222,8 @@ SDL_ReleaseGPUBuffer(gpu, model.index_buf);
 SDL_ReleaseGPUSampler(gpu, sampler);
 SDL_ReleaseGPUGraphicsPipeline(gpu, pipeline);
 SDL_ReleaseGPUTexture(gpu, depth_texture);
-//SDL_Releasegpud(gpu);
-SDL_DestroyWindow(window);
-SDL_Quit();
+
+
 */
 }
 
