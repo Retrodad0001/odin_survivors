@@ -23,6 +23,8 @@ See license info License.txt
 
 [Watch Dylan Falconer and learn Odin](https://www.youtube.com/@DylanFalconer)
 
+[Karl Zylinski's Odin book please support this guy by bying his book](https://odinbook.com/)
+
 ### SDL3
 
 [SDL3 homepage](https://libsdl.org/)
@@ -47,4 +49,4 @@ See license info License.txt
 
 ### ImGui
 
-[Github and some help ImGui"](https://github.com/ocornut/imgui)
+[Github and some help ImGui](https://github.com/ocornut/imgui)
