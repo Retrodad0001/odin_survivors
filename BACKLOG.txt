@@ -1,0 +1,24 @@
+BACKLOG
+
+v.1.0
+
+
+- setup the renderpipeline
+    //TODO setup basic rendering pipeline and show triangle
+    - hook-up ImGui and show FPS
+    - setup flamegraph
+    - log also in a file
+    - enable batching
+    - show atlas texture
+    - show only player
+
+- add scenemanagement and setup atlasinfo
+- setup draw tooling
+- change icon windows
+- add sound and music
+
+
+v.1.0
+
+
+Wont do

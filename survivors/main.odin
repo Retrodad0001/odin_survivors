@@ -1,13 +1,5 @@
 package survivors
 
-//TODO setup draw tooling
-//TODO Show complete atlas
-//TODO enable batching
-//TODO hook-up ImGui and show FPS
-//TODO change icon windows
-//TODO add sound and music
-//TODO log also in a file
-
 import "base:runtime"
 import "core:log"
 import "core:mem"
@@ -157,11 +149,12 @@ main :: proc() {
 			break game_loop
 		}
 
+		CLEAR_COLOR: sdl.FColor : {0, 0.2, 0.2, 1}
 		//begin the render pass 
-		color_target_info := sdl.GPUColorTargetInfo {//TODO understand all the steps in detail see docs
+		color_target_info := sdl.GPUColorTargetInfo { 	//TODO understand all the steps in detail see docs
 			texture     = swapchain_texture,
 			load_op     = .CLEAR,
-			clear_color = {0, 0.2, 0.2, 1},
+			clear_color = CLEAR_COLOR,
 			store_op    = .STORE,
 		}
 
@@ -184,11 +177,6 @@ main :: proc() {
 		}
 
 
-
-
-
-
-
 		//frame rate limiting
 		frame_time := sdl.GetTicks() - last_ticks
 		if frame_time < TARGET_FRAME_TIME {
@@ -196,10 +184,10 @@ main :: proc() {
 		}
 		last_ticks = new_ticks
 	}
-	
+
 	// Cleanup
-//TODO Cleanup
-/*
+	//TODO Cleanup
+	/*
 SDL_ReleaseGPUTexture(gpu, model.texture);
 SDL_ReleaseGPUBuffer(gpu, model.vertex_buf);
 SDL_ReleaseGPUBuffer(gpu, model.index_buf);
