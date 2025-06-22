@@ -4,11 +4,11 @@ v.1.0
 
 - setup the renderpipeline
     DONE - setup basic rendering pipeline and show blue triangle
-    - hook-up ImGui and show FPS and change values on the fly like projection
     - setup flamegraph
     - setup draw tooling
     - enable batching
     //TODO show atlas texture
+    //TODO integrate dearImGui 
     - show only player
 
   - log also in a file

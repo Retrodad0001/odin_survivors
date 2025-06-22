@@ -2,7 +2,7 @@
 
 Learning the Odin language and SDL3 by building a simplified 2D survovors game and sharing it with the community. I will use the SDL 3D GPU with a Data-Oriented Design approach.
 
-Other libs used : Dear ImGui and BOX2D
+Other libs used : MicroUI and BOX2D
 
 ## Graphics
 
@@ -46,7 +46,3 @@ See license info License.txt
 [Home page BOX2D"](https://box2d.org/)
 
 [Learning Box2D with Odin - Odin Game Development](https://www.youtube.com/watch?v=eL3fGZgbatc)
-
-### ImGui
-
-[Github and some help ImGui](https://github.com/ocornut/imgui)

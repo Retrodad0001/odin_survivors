@@ -6,14 +6,17 @@ import "core:math/linalg"
 import "core:mem"
 import sdl "vendor:sdl3"
 
+shader_code_fraq_text := #load("..//shader.frag")
+shader_code_vert_text := #load("..//shader.vert")
 
-shader_code_fraq := #load("..//shader.frag")
-shader_code_vert := #load("..//shader.vert")
+
+//TODO learn by adding parameter delta_time to update color triangle
+//TODO learn moving the camera around
 
 
 //data for the uniform buffer object (UBO)
 //TODO handle that max size is 16
-UBO :: struct  {
+UBO :: struct {
 	mvp: matrix[4, 4]f32,
 }
 
@@ -128,16 +131,13 @@ main :: proc() {
 	}
 
 	projection_matrix := linalg.matrix4_perspective_f32(
-		 linalg.to_radians(f32(70.0)),
+		linalg.to_radians(f32(70.0)),
 		f32(window_size.x) / f32(window_size.y),
 		0.0001,
 		1000,
 	)
 
-	rotation :f32 = 0.0
-
-	
-
+	rotation: f32 = 0.0
 
 	//create gpu device
 	should_debug := true
@@ -163,7 +163,6 @@ main :: proc() {
 	}
 
 	//TOOD enable me later entity_manager: EntityManager = entity_create_entity_manager()
-
 	TARGET_FPS: u64 : 60
 	TARGET_FRAME_TIME: u64 : 1000 / TARGET_FPS
 	SCALE_FACTOR: f32 : 20.0
@@ -171,13 +170,18 @@ main :: proc() {
 	last_ticks := sdl.GetTicks()
 
 	log.debug("ODIN SURVIVORS | start Loading shaders")
-	gpu_shader_vertex: ^sdl.GPUShader = load_shader(shader_code_vert, gpu_device, .VERTEX, 1)
+	gpu_shader_vertex: ^sdl.GPUShader = load_shader(shader_code_vert_text, gpu_device, .VERTEX, 1)
 	if gpu_shader_vertex == nil {
 		log.error("ODIN SURVIVORS | SDL_CreateGPUShader (vertex) failed: {}", sdl.GetError())
 		return
 	}
 
-	gpu_shader_fragment: ^sdl.GPUShader = load_shader(shader_code_fraq, gpu_device, .FRAGMENT, 0)
+	gpu_shader_fragment: ^sdl.GPUShader = load_shader(
+		shader_code_fraq_text,
+		gpu_device,
+		.FRAGMENT,
+		0,
+	)
 	if gpu_shader_fragment == nil {
 		log.error("ODIN SURVIVORS | SDL_CreateGPUShader (fragment) failed: {}", sdl.GetError())
 		return
@@ -226,12 +230,12 @@ main :: proc() {
 		delta_time: f32 = f32(new_ticks - last_ticks) / 1000
 
 
-		model_view_matrix := linalg.matrix4_translate_f32({0,0,-5})* linalg.matrix4_rotate_f32(rotation, {0,1,0})
-	
+		model_view_matrix :=
+			linalg.matrix4_translate_f32({0, 0, -5}) *
+			linalg.matrix4_rotate_f32(rotation, {0, 1, 0})
 		rotation += 1.5 * delta_time
-
 		game_update(delta_time)
- 
+
 		//get some command buffer from the gpu device
 		command_buffer := sdl.AcquireGPUCommandBuffer(gpu_device)
 
@@ -253,11 +257,12 @@ main :: proc() {
 		}
 
 		ubo := UBO {
-			mvp = projection_matrix * model_view_matrix, 
+			mvp = projection_matrix * model_view_matrix,
 		}
 
+
 		if (swapchain_texture != nil) {
-			CLEAR_COLOR: sdl.FColor : {0, 0.2, 0.2, 1}
+			CLEAR_COLOR: sdl.FColor : {0, 0.0, 0.1, 1}
 			//begin the render pass 
 			color_target_info := sdl.GPUColorTargetInfo { 	//TODO understand all the steps in detail see docs
 				texture     = swapchain_texture,
