@@ -1,6 +1,6 @@
 # Learning Odin and the SDL3 GPU
 
-Learning the Odin language and SDL3 by building a simplified 2D survovors game and sharing it with the community. I will use the SDL 3D GPU with a Data-Oriented Design approach.
+Learning the Odin language and SDL3 GPU API by building a simplified 2D survovors game and sharing it with the community.
 
 Other libs used : MicroUI and BOX2D
 
@@ -40,6 +40,7 @@ See license info License.txt
 [Nic Barker - Intro to Data-Oriented Design for Games](https://www.youtube.com/watch?v=WwkuAqObplU)
 
 [Jason Booth - Practical Optimizations](https://www.youtube.com/watch?v=NAVbI1HIzCE&t=1085s)
+[CppCon 2018: Stoyan Nikolov “OOP Is Dead, Long Live Data-oriented Design”](https://www.youtube.com/watch?v=yy8jQgmhbAU&list=WL&index=10&t=702s)
 
 ### BOX2D
 

@@ -9,10 +9,11 @@ import sdl "vendor:sdl3"
 shader_code_fraq_text := #load("..//shader.frag")
 shader_code_vert_text := #load("..//shader.vert")
 
-
 //TODO learn by adding parameter delta_time to update color triangle
 //TODO learn moving the camera around
 
+//TODO INTEGRATE RAD DEBUGGER
+//TOD integrate perf profiler
 
 //data for the uniform buffer object (UBO)
 //TODO handle that max size is 16
