@@ -1,0 +1,16 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build and Run Odin Survivors",
+			"type": "shell",
+			"command": "run.bat",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}

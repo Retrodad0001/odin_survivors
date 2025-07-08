@@ -8,13 +8,13 @@ void main()
 {
     vec4 position;
     if (gl_VertexIndex == 0) {
-        position = vec4(-0.5, -0.5, 0, 1); // Example position
+        position = vec4(-1, -1, 0, 1); // Example position
     }
     else if (gl_VertexIndex == 1) {
-        position = vec4(0, 0.5, 0, 1); // Example position
+        position = vec4(0, 1, 0, 1); // Example position
     }
     else if (gl_VertexIndex == 2) {
-        position = vec4(0.5, -0.5 , 0, 1); // Example position
+        position = vec4(1, -1 , 0, 1); // Example position
     }
 
     gl_Position = mvp * position; // Apply the projection matrix

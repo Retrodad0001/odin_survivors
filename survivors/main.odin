@@ -6,17 +6,23 @@ import "core:math/linalg"
 import "core:mem"
 import sdl "vendor:sdl3"
 
-shader_code_fraq_text := #load("..//shader.frag")
-shader_code_vert_text := #load("..//shader.vert")
+shader_code_fraq_text :: #load("..//shader.frag")
+shader_code_vert_text :: #load("..//shader.vert")
 
+//TODO draw quad from code instead of hardcoding it in shader //index buffers?
+
+//TODO draw 10 enemies
+//TODO add textures
+//TODO add batch rendering
 //TODO learn by adding parameter delta_time to update color triangle
-//TODO learn moving the camera around
-
+//TODO learn moving the camera around en zoom (2D)
+//TODO add effect to only one enemy
+//TODO destroy / delete SDL3 stuff
 //TODO INTEGRATE RAD DEBUGGER
-//TOD integrate perf profiler
+//TODO integrate perf profiler
+//TODO handle that max size is 16
 
 //data for the uniform buffer object (UBO)
-//TODO handle that max size is 16
 UBO :: struct {
 	mvp: matrix[4, 4]f32,
 }
@@ -38,6 +44,9 @@ sdl_log :: proc "c" (
 		level = .Warning
 	case .ERROR:
 		level = .Error
+		if (ODIN_DEBUG) {
+			assert(false)
+		}
 	case .CRITICAL:
 		level = .Fatal
 	}
@@ -54,7 +63,6 @@ main :: proc() {
 	} else {
 		log.debug("ODIN SURVIVORS | DEBUG disabled")
 	}
-
 
 	if (ODIN_DEBUG) {
 		log.debug("ODIN SURVIVORS | Memory tracking enabled")
@@ -101,6 +109,9 @@ main :: proc() {
 	SDL_INIT_FLAGS :: sdl.INIT_VIDEO
 	if (sdl.Init(SDL_INIT_FLAGS)) == false {
 		log.error("ODIN SURVIVORS | SDL_Init failed: {}", sdl.GetError())
+		if (ODIN_DEBUG) {
+			assert(false)
+		}
 		return
 	}
 	defer sdl.Quit()
@@ -120,6 +131,9 @@ main :: proc() {
 	defer sdl.DestroyWindow(window)
 	if window == nil {
 		log.error("ODIN SURVIVORS | SDL_CreateWindow failed: {}", sdl.GetError())
+		if (ODIN_DEBUG) {
+			assert(false)
+		}
 		return
 	}
 
@@ -128,17 +142,12 @@ main :: proc() {
 
 	if ok == false {
 		log.error("ODIN SURVIVORS | SDL_GetWindowSize failed: {}", sdl.GetError())
+		if (ODIN_DEBUG) {
+			assert(false)
+		}
 		return
 	}
 
-	projection_matrix := linalg.matrix4_perspective_f32(
-		linalg.to_radians(f32(70.0)),
-		f32(window_size.x) / f32(window_size.y),
-		0.0001,
-		1000,
-	)
-
-	rotation: f32 = 0.0
 
 	//create gpu device
 	should_debug := true
@@ -153,6 +162,9 @@ main :: proc() {
 	defer sdl.DestroyGPUDevice(gpu_device)
 	if gpu_device == nil {
 		log.error("ODIN SURVIVORS | SDL_CreateGPUDevice failed: {}", sdl.GetError())
+		if (ODIN_DEBUG) {
+			assert(false)
+		}
 		return
 	}
 
@@ -160,13 +172,15 @@ main :: proc() {
 	claim_window_OK: bool = sdl.ClaimWindowForGPUDevice(gpu_device, window)
 	if claim_window_OK == false {
 		log.error("ODIN SURVIVORS | SDL_ClaimWindowForGPUDevice failed: {}", sdl.GetError())
+		if (ODIN_DEBUG) {
+			assert(false)
+		}
 		return
 	}
 
 	//TOOD enable me later entity_manager: EntityManager = entity_create_entity_manager()
 	TARGET_FPS: u64 : 60
 	TARGET_FRAME_TIME: u64 : 1000 / TARGET_FPS
-	SCALE_FACTOR: f32 : 20.0
 
 	last_ticks := sdl.GetTicks()
 
@@ -174,6 +188,9 @@ main :: proc() {
 	gpu_shader_vertex: ^sdl.GPUShader = load_shader(shader_code_vert_text, gpu_device, .VERTEX, 1)
 	if gpu_shader_vertex == nil {
 		log.error("ODIN SURVIVORS | SDL_CreateGPUShader (vertex) failed: {}", sdl.GetError())
+		if (ODIN_DEBUG) {
+			assert(false)
+		}
 		return
 	}
 
@@ -183,10 +200,17 @@ main :: proc() {
 		.FRAGMENT,
 		0,
 	)
+
 	if gpu_shader_fragment == nil {
 		log.error("ODIN SURVIVORS | SDL_CreateGPUShader (fragment) failed: {}", sdl.GetError())
+		if (ODIN_DEBUG) {
+			assert(false)
+		}
 		return
 	}
+
+	defer sdl.ReleaseGPUShader(gpu_device, gpu_shader_vertex)
+	defer sdl.ReleaseGPUShader(gpu_device, gpu_shader_fragment)
 	log.debug("ODIN SURVIVORS | end Loading shaders")
 
 	graphics_pipeline_create_info := sdl.GPUGraphicsPipelineCreateInfo {
@@ -205,12 +229,14 @@ main :: proc() {
 	pipeline := sdl.CreateGPUGraphicsPipeline(gpu_device, graphics_pipeline_create_info)
 	if pipeline == nil {
 		log.error("ODIN SURVIVORS | SDL_CreateGPUGraphicsPipeline failed: {}", sdl.GetError())
+
+		if (ODIN_DEBUG) {
+			assert(false)
+		}
 		return
 	}
 	defer sdl.ReleaseGPUGraphicsPipeline(gpu_device, pipeline)
 
-	sdl.ReleaseGPUShader(gpu_device, gpu_shader_vertex)
-	sdl.ReleaseGPUShader(gpu_device, gpu_shader_fragment)
 
 	game_loop: for {
 
@@ -231,14 +257,15 @@ main :: proc() {
 		delta_time: f32 = f32(new_ticks - last_ticks) / 1000
 
 
+		rotation_sprite :: 0 //FOR NOW ADD IT BUT WE DONT USE IT RIGHT NOW
 		model_view_matrix :=
 			linalg.matrix4_translate_f32({0, 0, -5}) *
-			linalg.matrix4_rotate_f32(rotation, {0, 1, 0})
-		rotation += 1.5 * delta_time
+			linalg.matrix4_rotate_f32(rotation_sprite, {0, 1, 0})
 		game_update(delta_time)
 
 		//get some command buffer from the gpu device
 		command_buffer := sdl.AcquireGPUCommandBuffer(gpu_device)
+		//TODO delete or reuse commandbuffer?
 
 		//get some swapchain texture (aka Render Target)
 		swapchain_texture: ^sdl.GPUTexture
@@ -254,9 +281,18 @@ main :: proc() {
 				"ODIN SURVIVORS | SDL_WaitAndAcquireGPUSwapchainTexture failed: {}",
 				sdl.GetError(),
 			)
+			if (ODIN_DEBUG) {
+				assert(false)
+			}
 			break game_loop
 		}
 
+		projection_matrix := linalg.matrix4_perspective_f32(
+			linalg.to_radians(f32(70.0)),
+			f32(window_size.x) / f32(window_size.y),
+			0.0001, //FIXME near ? and what about 2d camera and projection
+			1000, //FIXME far? and what about 2d camera and projection
+		)
 		ubo := UBO {
 			mvp = projection_matrix * model_view_matrix,
 		}
@@ -265,7 +301,7 @@ main :: proc() {
 		if (swapchain_texture != nil) {
 			CLEAR_COLOR: sdl.FColor : {0, 0.0, 0.1, 1}
 			//begin the render pass 
-			color_target_info := sdl.GPUColorTargetInfo { 	//TODO understand all the steps in detail see docs
+			color_target_info := sdl.GPUColorTargetInfo {
 				texture     = swapchain_texture,
 				load_op     = .CLEAR,
 				clear_color = CLEAR_COLOR,
@@ -275,8 +311,12 @@ main :: proc() {
 			//game_render(command_buffer, pipeline, &color_target_info, &ubo)
 
 			//TODO can do more render passes if needed, investigate why this is needed to understand 
+
 			render_pass := sdl.BeginGPURenderPass(command_buffer, &color_target_info, 1, nil)
 			sdl.BindGPUGraphicsPipeline(render_pass, pipeline)
+
+			SLOT_INDEX_UBO: sdl.Uint32 : 0 //FIXME can i get this from shader after loading the shader like opengl glGenuniformLocation
+
 			sdl.PushGPUVertexUniformData(command_buffer, 0, &ubo, size_of(ubo))
 			//vertex attributes
 			//uniform data
@@ -294,6 +334,9 @@ main :: proc() {
 		submit_command_buffer_OK: bool = sdl.SubmitGPUCommandBuffer(command_buffer)
 		if submit_command_buffer_OK == false {
 			log.error("ODIN SURVIVORS | SDL_SubmitGPUCommandBuffer failed: {}", sdl.GetError())
+			if (ODIN_DEBUG) {
+				assert(false)
+			}
 			break game_loop
 		}
 
@@ -312,15 +355,6 @@ game_update :: proc(delta_time: f32) {
 
 }
 
-//TODO move stuff here when i can draw the player
-game_render :: proc(
-	command_buffer: ^sdl.GPUCommandBuffer,
-	pipeline: ^sdl.GPUGraphicsPipeline,
-	color_target_info: ^sdl.GPUColorTargetInfo,
-	ubo: ^UBO,
-) {
-
-}
 
 @(private = "file")
 load_shader :: proc(

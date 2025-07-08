@@ -32,9 +32,7 @@ IF %ERRORLEVEL% NEQ 0 exit /b 1
 xcopy /y /e /i assets %OUT_DIR%\assets > nul
 IF %ERRORLEVEL% NEQ 0 exit /b 1
 
-
 echo Debug build created in %OUT_DIR%
-echo.
 
 echo Copy SDL3 DLLs to output directory
 xcopy /y D:\DevTools\Odin\vendor\sdl3\sdl3.dll %OUT_DIR% > nul
