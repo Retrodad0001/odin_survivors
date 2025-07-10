@@ -40,6 +40,7 @@ See license info License.txt
 [Nic Barker - Intro to Data-Oriented Design for Games](https://www.youtube.com/watch?v=WwkuAqObplU)
 
 [Jason Booth - Practical Optimizations](https://www.youtube.com/watch?v=NAVbI1HIzCE&t=1085s)
+
 [CppCon 2018: Stoyan Nikolov “OOP Is Dead, Long Live Data-oriented Design”](https://www.youtube.com/watch?v=yy8jQgmhbAU&list=WL&index=10&t=702s)
 
 ### BOX2D
