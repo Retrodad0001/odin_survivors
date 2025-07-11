@@ -57,6 +57,9 @@ main :: proc() {
 	context.logger = log.create_console_logger()
 	log.debug("starting game")
 
+	if (ODIN_DEBUG) {
+		log.debug("ODIN SURVIVORS | OS USED : " + ODIN_OS_STRING)
+	}
 
 	if (ODIN_DEBUG) {
 		log.debug("ODIN SURVIVORS | DEBUG enabled")
@@ -148,7 +151,6 @@ main :: proc() {
 		return
 	}
 
-
 	//create gpu device
 	should_debug := true
 	if (ODIN_DEBUG) {
@@ -209,8 +211,8 @@ main :: proc() {
 		return
 	}
 
-	defer sdl.ReleaseGPUShader(gpu_device, gpu_shader_vertex)
-	defer sdl.ReleaseGPUShader(gpu_device, gpu_shader_fragment)
+	sdl.ReleaseGPUShader(gpu_device, gpu_shader_vertex)
+	sdl.ReleaseGPUShader(gpu_device, gpu_shader_fragment)
 	log.debug("ODIN SURVIVORS | end Loading shaders")
 
 	graphics_pipeline_create_info := sdl.GPUGraphicsPipelineCreateInfo {
@@ -229,7 +231,6 @@ main :: proc() {
 	pipeline := sdl.CreateGPUGraphicsPipeline(gpu_device, graphics_pipeline_create_info)
 	if pipeline == nil {
 		log.error("ODIN SURVIVORS | SDL_CreateGPUGraphicsPipeline failed: {}", sdl.GetError())
-
 		if (ODIN_DEBUG) {
 			assert(false)
 		}
@@ -238,7 +239,7 @@ main :: proc() {
 	defer sdl.ReleaseGPUGraphicsPipeline(gpu_device, pipeline)
 
 
-	game_loop: for {
+	GAME_LOOP: for {
 
 		// process events
 		input_event: sdl.Event
@@ -246,9 +247,9 @@ main :: proc() {
 
 			#partial switch input_event.type {
 			case .QUIT:
-				break game_loop
+				break GAME_LOOP
 			case .KEY_DOWN:
-				if input_event.key.scancode == .ESCAPE do break game_loop
+				if input_event.key.scancode == .ESCAPE do break GAME_LOOP
 			}
 		}
 
@@ -257,15 +258,15 @@ main :: proc() {
 		delta_time: f32 = f32(new_ticks - last_ticks) / 1000
 
 
-		rotation_sprite :: 0 //FOR NOW ADD IT BUT WE DONT USE IT RIGHT NOW
-		model_view_matrix :=
-			linalg.matrix4_translate_f32({0, 0, -5}) *
-			linalg.matrix4_rotate_f32(rotation_sprite, {0, 1, 0})
-		game_update(delta_time)
+		 rotation_sprite :: 0 //FOR NOW, we dont use per sprite/entity rotation
+		 model_view_matrix :=
+		 	linalg.matrix4_translate_f32({0, 0, -1}) *
+		 	linalg.matrix4_rotate_f32(rotation_sprite, {0, 1, 0})
+		 game_update(delta_time)
 
 		//get some command buffer from the gpu device
 		command_buffer := sdl.AcquireGPUCommandBuffer(gpu_device)
-		//TODO delete or reuse commandbuffer?
+		//FIXME delete or reuse commandbuffer?
 
 		//get some swapchain texture (aka Render Target)
 		swapchain_texture: ^sdl.GPUTexture
@@ -284,19 +285,24 @@ main :: proc() {
 			if (ODIN_DEBUG) {
 				assert(false)
 			}
-			break game_loop
+			break GAME_LOOP
 		}
 
-		projection_matrix := linalg.matrix4_perspective_f32(
-			linalg.to_radians(f32(70.0)),
-			f32(window_size.x) / f32(window_size.y),
-			0.0001, //FIXME near ? and what about 2d camera and projection
-			1000, //FIXME far? and what about 2d camera and projection
-		)
-		ubo := UBO {
-			mvp = projection_matrix * model_view_matrix,
-		}
+		//for transform stuff to screen
+        orthograpic_projection: linalg.Matrix4x4f32 = linalg.matrix_ortho3d_f32(
+            left   = -2.0,
+            right  = 2.0,
+            bottom = -1.5, 
+            top    = 1.5,
+            near   = -1,
+            far    = 1,
+        )
 
+        view_matrix := linalg.MATRIX4F32_IDENTITY//CAMERA
+       
+        ubo := UBO {
+            mvp = orthograpic_projection * view_matrix * model_view_matrix,
+        }
 
 		if (swapchain_texture != nil) {
 			CLEAR_COLOR: sdl.FColor : {0, 0.0, 0.1, 1}
@@ -316,8 +322,7 @@ main :: proc() {
 			sdl.BindGPUGraphicsPipeline(render_pass, pipeline)
 
 			SLOT_INDEX_UBO: sdl.Uint32 : 0 //FIXME can i get this from shader after loading the shader like opengl glGenuniformLocation
-
-			sdl.PushGPUVertexUniformData(command_buffer, 0, &ubo, size_of(ubo))
+			sdl.PushGPUVertexUniformData(command_buffer, SLOT_INDEX_UBO, &ubo, size_of(ubo))
 			//vertex attributes
 			//uniform data
 			sdl.DrawGPUPrimitives(render_pass, 3, 1, 0, 0)
@@ -337,7 +342,7 @@ main :: proc() {
 			if (ODIN_DEBUG) {
 				assert(false)
 			}
-			break game_loop
+			break GAME_LOOP
 		}
 
 
@@ -351,26 +356,7 @@ main :: proc() {
 
 }
 
+
 game_update :: proc(delta_time: f32) {
 
-}
-
-
-@(private = "file")
-load_shader :: proc(
-	shader_code: []u8,
-	gpu_device: ^sdl.GPUDevice,
-	stage: sdl.GPUShaderStage,
-	num_uniform_b: u32,
-) -> ^sdl.GPUShader {
-	shader_create_info := sdl.GPUShaderCreateInfo {
-		code_size           = len(shader_code),
-		code                = raw_data(shader_code),
-		entrypoint          = "main",
-		format              = {.SPIRV},
-		stage               = stage,
-		num_uniform_buffers = num_uniform_b,
-	}
-
-	return sdl.CreateGPUShader(gpu_device, shader_create_info)
 }
