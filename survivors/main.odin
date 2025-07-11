@@ -289,11 +289,12 @@ main :: proc() {
 		}
 
 		//for transform stuff to screen
+        aspect_ratio: f32 = f32(window_size.x) / f32(window_size.y)
         orthograpic_projection: linalg.Matrix4x4f32 = linalg.matrix_ortho3d_f32(
-            left   = -2.0,
-            right  = 2.0,
-            bottom = -1.5, 
-            top    = 1.5,
+            left   = -2.0 * aspect_ratio,
+            right  = 2.0 * aspect_ratio,
+            bottom = -2.0, 
+            top    = 2.0,
             near   = -1,
             far    = 1,
         )
