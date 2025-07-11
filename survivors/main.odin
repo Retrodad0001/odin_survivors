@@ -120,15 +120,15 @@ main :: proc() {
 	defer sdl.Quit()
 
 	//create window
-	WINDOWS_WIDTH :: 1280
-	WINDOWS_HEIGHT :: 720
+	INIT_WINDOWS_WIDTH :: 1920 //TODO add issue detect unused constants in strict mode
+	INIT_WINDOWS_HEIGHT :: 1080
 	window_flags: sdl.WindowFlags
 	window_flags += {.RESIZABLE}
 	window: ^sdl.Window = sdl.CreateWindow(
-		"ODIN SURVIVORS",
-		WINDOWS_WIDTH,
-		WINDOWS_HEIGHT,
-		window_flags,
+		title = "ODIN SURVIVORS",
+		w = 1920,
+		h = 1080,
+		flags = window_flags,
 	)
 
 	defer sdl.DestroyWindow(window)
@@ -140,16 +140,6 @@ main :: proc() {
 		return
 	}
 
-	window_size: [2]i32
-	ok := sdl.GetWindowSize(window, &window_size.x, &window_size.y)
-
-	if ok == false {
-		log.error("ODIN SURVIVORS | SDL_GetWindowSize failed: {}", sdl.GetError())
-		if (ODIN_DEBUG) {
-			assert(false)
-		}
-		return
-	}
 
 	//create gpu device
 	should_debug := true
@@ -238,9 +228,42 @@ main :: proc() {
 	}
 	defer sdl.ReleaseGPUGraphicsPipeline(gpu_device, pipeline)
 
+	//get the size of the windows from SDL
+	window_size: [2]i32
+	ok := sdl.GetWindowSize(window, &window_size.x, &window_size.y)
+	if ok == false {
+		log.error("ODIN SURVIVORS | SDL_GetWindowSize failed: {}", sdl.GetError())
+		if (ODIN_DEBUG) {
+			assert(false)
+		}
+		return
+	}
+
+	//TODO also calculate when window size changes
+	//for transform stuff to screen
+	aspect_ratio: f32 = f32(window_size.x) / f32(window_size.y)
+	orthograpic_projection: linalg.Matrix4x4f32 = linalg.matrix_ortho3d_f32(
+		left = -2.0 * aspect_ratio,
+		right = 2.0 * aspect_ratio,
+		bottom = -2.0,
+		top = 2.0,
+		near = -1,
+		far = 1,
+	)
+
+	// TODO put this in a camera struct
+		camera_x: f32 = 0
+		camera_y: f32 = 0
+		zoom: f32 = 1.0
+		zoom_speed: f32 = 2.0
 
 	GAME_LOOP: for {
 
+		//calculate delta time
+		new_ticks := sdl.GetTicks()
+		delta_time: f32 = f32(new_ticks - last_ticks) / 1000
+
+		
 		// process events
 		input_event: sdl.Event
 		for sdl.PollEvent(&input_event) {
@@ -251,18 +274,17 @@ main :: proc() {
 			case .KEY_DOWN:
 				if input_event.key.scancode == .ESCAPE do break GAME_LOOP
 			}
+				//update zoom based on mouse wheel
+		if input_event.type == .MOUSE_WHEEL {
+			if input_event.wheel.y > 0 {
+				zoom += zoom_speed * delta_time // Zoom in
+			} else if input_event.wheel.y < 0 {
+				zoom -= zoom_speed * delta_time // Zoom out
+			}
+		}
 		}
 
-		//calculate delta time
-		new_ticks := sdl.GetTicks()
-		delta_time: f32 = f32(new_ticks - last_ticks) / 1000
-
-
-		 rotation_sprite :: 0 //FOR NOW, we dont use per sprite/entity rotation
-		 model_view_matrix :=
-		 	linalg.matrix4_translate_f32({0, 0, -1}) *
-		 	linalg.matrix4_rotate_f32(rotation_sprite, {0, 1, 0})
-		 game_update(delta_time)
+		
 
 		//get some command buffer from the gpu device
 		command_buffer := sdl.AcquireGPUCommandBuffer(gpu_device)
@@ -288,22 +310,28 @@ main :: proc() {
 			break GAME_LOOP
 		}
 
-		//for transform stuff to screen
-        aspect_ratio: f32 = f32(window_size.x) / f32(window_size.y)
-        orthograpic_projection: linalg.Matrix4x4f32 = linalg.matrix_ortho3d_f32(
-            left   = -2.0 * aspect_ratio,
-            right  = 2.0 * aspect_ratio,
-            bottom = -2.0, 
-            top    = 2.0,
-            near   = -1,
-            far    = 1,
-        )
+		rotation_sprite :: 0 //FOR NOW, we dont use per sprite/entity rotation
+		model_view_matrix :=
+			linalg.matrix4_translate_f32({0, 0, -1}) *
+			linalg.matrix4_rotate_f32(rotation_sprite, {0, 1, 0})
+		game_update(delta_time)
 
-        view_matrix := linalg.MATRIX4F32_IDENTITY//CAMERA
-       
-        ubo := UBO {
-            mvp = orthograpic_projection * view_matrix * model_view_matrix,
-        }
+		
+
+	
+
+	
+	
+		// set max and min zoom limits
+		zoom = clamp(zoom, 0.1, 10.0)
+
+		// Create view matrix with camera position and zoom
+		view_camera_matrix := linalg.matrix4_scale_f32({zoom, zoom, 1}) * 
+							 linalg.matrix4_translate_f32({-camera_x, -camera_y, 0})
+
+		ubo := UBO {
+			mvp = orthograpic_projection * view_camera_matrix * model_view_matrix,
+		}
 
 		if (swapchain_texture != nil) {
 			CLEAR_COLOR: sdl.FColor : {0, 0.0, 0.1, 1}
@@ -314,8 +342,6 @@ main :: proc() {
 				clear_color = CLEAR_COLOR,
 				store_op    = .STORE,
 			}
-
-			//game_render(command_buffer, pipeline, &color_target_info, &ubo)
 
 			//TODO can do more render passes if needed, investigate why this is needed to understand 
 
