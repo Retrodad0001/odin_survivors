@@ -23,10 +23,7 @@ shader_code_vert_text :: #load("..//shader.vert")
 //TODO handle that max size is 16
 
 
-//data for the uniform buffer object (UBO)
-UBO :: struct {
-	mvp: matrix[4, 4]f32,
-}
+
 
 sdl_log :: proc "c" (
 	userdata: rawptr,
@@ -142,7 +139,7 @@ main :: proc() {
 	}
 
 
-	//create gpu device
+
 	should_debug := true
 	if (ODIN_DEBUG) {
 		log.debug("ODIN SURVIVORS | GPU debug enabled")
@@ -161,6 +158,7 @@ main :: proc() {
 		return
 	}
 
+
 	//claim the window for this gpu_device
 	claim_window_OK: bool = sdl.ClaimWindowForGPUDevice(gpu_device, window)
 	if claim_window_OK == false {
@@ -171,17 +169,11 @@ main :: proc() {
 		return
 	}
 
-	camera := camera_init()
-
-	//TOOD enable me later entity_manager: EntityManager = entity_create_entity_manager()
-	TARGET_FPS: u64 : 60
-	TARGET_FRAME_TIME: u64 : 1000 / TARGET_FPS
-
-	last_ticks := sdl.GetTicks()
-
+	
+	//SHADER SETUP
 	log.debug("ODIN SURVIVORS | start Loading shaders")
-	gpu_shader_vertex: ^sdl.GPUShader = load_shader(shader_code_vert_text, gpu_device, .VERTEX, 1)
-	if gpu_shader_vertex == nil {
+	gpu_vertex_shader: ^sdl.GPUShader = load_shader(shader_code_vert_text, gpu_device, .VERTEX, 1)
+	if gpu_vertex_shader == nil {
 		log.error("ODIN SURVIVORS | SDL_CreateGPUShader (vertex) failed: {}", sdl.GetError())
 		if (ODIN_DEBUG) {
 			assert(false)
@@ -189,14 +181,14 @@ main :: proc() {
 		return
 	}
 
-	gpu_shader_fragment: ^sdl.GPUShader = load_shader(
+	gpu_fragment_shader: ^sdl.GPUShader = load_shader(
 		shader_code_fraq_text,
 		gpu_device,
 		.FRAGMENT,
 		0,
 	)
 
-	if gpu_shader_fragment == nil {
+	if gpu_fragment_shader == nil {
 		log.error("ODIN SURVIVORS | SDL_CreateGPUShader (fragment) failed: {}", sdl.GetError())
 		if (ODIN_DEBUG) {
 			assert(false)
@@ -204,13 +196,15 @@ main :: proc() {
 		return
 	}
 
-	sdl.ReleaseGPUShader(gpu_device, gpu_shader_vertex)
-	sdl.ReleaseGPUShader(gpu_device, gpu_shader_fragment)
+	sdl.ReleaseGPUShader(gpu_device, gpu_vertex_shader)
+	sdl.ReleaseGPUShader(gpu_device, gpu_fragment_shader)
+	
 	log.debug("ODIN SURVIVORS | end Loading shaders")
 
+
 	graphics_pipeline_create_info := sdl.GPUGraphicsPipelineCreateInfo {
-		vertex_shader = gpu_shader_vertex,
-		fragment_shader = gpu_shader_fragment,
+		vertex_shader = gpu_vertex_shader,
+		fragment_shader = gpu_fragment_shader,
 		primitive_type = .TRIANGLELIST,
 		target_info = {
 			num_color_targets = 1,
@@ -231,6 +225,8 @@ main :: proc() {
 	}
 	defer sdl.ReleaseGPUGraphicsPipeline(gpu_device, pipeline)
 
+
+
 	//get the size of the windows from SDL
 	window_size: [2]i32
 	ok := sdl.GetWindowSize(window, &window_size.x, &window_size.y)
@@ -242,8 +238,6 @@ main :: proc() {
 		return
 	}
 
-	//TODO also calculate when window size changes
-	//for transform stuff to screen
 	aspect_ratio: f32 = f32(window_size.x) / f32(window_size.y)
 	orthograpic_projection: linalg.Matrix4x4f32 = linalg.matrix_ortho3d_f32(
 		left = -2.0 * aspect_ratio,
@@ -254,9 +248,14 @@ main :: proc() {
 		far = 1,
 	)
 
+	camera := camera_init()
+
+	TARGET_FPS: u64 : 60
+	TARGET_FRAME_TIME: u64 : 1000 / TARGET_FPS
+	last_ticks := sdl.GetTicks()
+	
 	GAME_LOOP: for {
 
-		//calculate delta time
 		new_ticks := sdl.GetTicks()
 		delta_time: f32 = f32(new_ticks - last_ticks) / 1000
 
@@ -270,19 +269,12 @@ main :: proc() {
 		}
 
 		game_update(delta_time)
-		should_quit_game = render(
-			&camera,
-			orthograpic_projection,
-			gpu_device,
-			window,
-			pipeline,
-		)
+		should_quit_game = render(&camera, orthograpic_projection, gpu_device, window, pipeline)
 
 		if should_quit_game {
 			if (ODIN_DEBUG) {
 				log.debug("ODIN SURVIVORS | quitting game")
 			}
-			log.debug("ODIN SURVIVORS | quitting game")
 			break GAME_LOOP
 		}
 
@@ -446,7 +438,5 @@ render :: proc(
 		}
 		return true
 	}
-
 	return false
-
 }

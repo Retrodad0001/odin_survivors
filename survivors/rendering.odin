@@ -27,6 +27,11 @@ camera_init :: proc() -> Camera {
 	return camera
 }
 
+//data for the uniform buffer object (UBO)
+UBO :: struct {
+	mvp: matrix[4, 4]f32,
+}
+
 @(private)
 DrawCommandBuffer :: union {}
 
