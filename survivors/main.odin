@@ -14,6 +14,7 @@ shader_code_vert_text :: #load("..//shader.vert")
 //TODO draw 10 enemies
 //TODO add textures
 //TODO add batch rendering
+//TODO use culling techniques to minimize pixel writes
 //TODO learn by adding parameter delta_time to update color triangle
 //TODO learn moving the camera around en zoom (2D)
 //TODO add effect to only one enemy
@@ -21,8 +22,6 @@ shader_code_vert_text :: #load("..//shader.vert")
 //TODO INTEGRATE RAD DEBUGGER
 //TODO integrate perf profiler
 //TODO handle that max size is 16
-
-
 
 
 sdl_log :: proc "c" (
@@ -139,7 +138,6 @@ main :: proc() {
 	}
 
 
-
 	should_debug := true
 	if (ODIN_DEBUG) {
 		log.debug("ODIN SURVIVORS | GPU debug enabled")
@@ -169,10 +167,17 @@ main :: proc() {
 		return
 	}
 
-	
+
 	//SHADER SETUP
+	NUMBER_OF_UNIFORMBUFFERS_VERTEX: u32 = 1
+	NUMBER_OF_UNIFORMBUFFERS_FRAGMENT: u32 = 0
 	log.debug("ODIN SURVIVORS | start Loading shaders")
-	gpu_vertex_shader: ^sdl.GPUShader = load_shader(shader_code_vert_text, gpu_device, .VERTEX, 1)
+	gpu_vertex_shader: ^sdl.GPUShader = load_shader(
+		shader_code_vert_text,
+		gpu_device,
+		.VERTEX,
+		NUMBER_OF_UNIFORMBUFFERS_VERTEX,
+	)
 	if gpu_vertex_shader == nil {
 		log.error("ODIN SURVIVORS | SDL_CreateGPUShader (vertex) failed: {}", sdl.GetError())
 		if (ODIN_DEBUG) {
@@ -185,7 +190,7 @@ main :: proc() {
 		shader_code_fraq_text,
 		gpu_device,
 		.FRAGMENT,
-		0,
+		NUMBER_OF_UNIFORMBUFFERS_FRAGMENT,
 	)
 
 	if gpu_fragment_shader == nil {
@@ -198,14 +203,86 @@ main :: proc() {
 
 	sdl.ReleaseGPUShader(gpu_device, gpu_vertex_shader)
 	sdl.ReleaseGPUShader(gpu_device, gpu_fragment_shader)
-	
 	log.debug("ODIN SURVIVORS | end Loading shaders")
+
+	//setup vertex attributes and vertex buffer for the pipeline
+
+	//vertex data (triangle)
+	Vec3 :: [3]f32
+
+	vertices: []Vec3 = {
+		{-0.5, -0.5, 0}, // Top vertex
+		{0, 0.5, 0}, // Bottom left vertex
+		{0.5, -0.5, 0}, // Bottom right vertex
+	}
+
+	vertices_byte_size := len(vertices) * size_of(vertices[0])
+
+	vertex_attributes := []sdl.GPUVertexAttribute {
+
+		//POSITION_IN
+		{
+			location = 0, //mapped to the shader attribute "in_position"
+			format   = .FLOAT3, //location 0 is the position
+			offset   = 0,
+		},
+	}
+
+	//create the vertex buffer
+	vertex_buffer := sdl.CreateGPUBuffer(
+		gpu_device,
+		{usage = {.VERTEX}, size = u32(vertices_byte_size)},
+	)
+
+
+	transfer_buffer_create_info := sdl.GPUTransferBufferCreateInfo {
+		usage = .UPLOAD,
+		size  = u32(vertices_byte_size), //TODO can be more than just vertices for position
+	}
+	//upload the vertex data to GPU
+	transfer_buffer := sdl.CreateGPUTransferBuffer(gpu_device, transfer_buffer_create_info)
+	transfer_mem := sdl.MapGPUTransferBuffer(gpu_device, transfer_buffer, false)
+	mem.copy(transfer_mem, raw_data(vertices), vertices_byte_size)
+	sdl.UnmapGPUTransferBuffer(gpu_device, transfer_buffer)
+
+	copy_command_buffer := sdl.AcquireGPUCommandBuffer(gpu_device)
+
+	copy_pass := sdl.BeginGPUCopyPass(copy_command_buffer)
+
+	sdl.UploadToGPUBuffer(
+		copy_pass,
+		{transfer_buffer = transfer_buffer},
+		{buffer = vertex_buffer, offset = 0, size = u32(vertices_byte_size)},
+		false,
+	)
+
+	sdl.EndGPUCopyPass(copy_pass)
+
+	submit_command_buffer_OK: bool = sdl.SubmitGPUCommandBuffer(copy_command_buffer)
+	if submit_command_buffer_OK == false {
+		log.error(
+			"ODIN SURVIVORS | SDL_SubmitGPUCommandBuffer failed for copy vertices data: {}",
+			sdl.GetError(),
+		)
+		if (ODIN_DEBUG) {
+			assert(false)
+		}
+	}
 
 
 	graphics_pipeline_create_info := sdl.GPUGraphicsPipelineCreateInfo {
 		vertex_shader = gpu_vertex_shader,
 		fragment_shader = gpu_fragment_shader,
 		primitive_type = .TRIANGLELIST,
+		vertex_input_state = {
+			num_vertex_buffers = 1,
+			vertex_buffer_descriptions = &(sdl.GPUVertexBufferDescription {
+					slot = 0,
+					pitch = size_of(Vec3),
+				}),
+			num_vertex_attributes = u32(len(vertex_attributes)),
+			vertex_attributes = raw_data(vertex_attributes),
+		},
 		target_info = {
 			num_color_targets = 1,
 			color_target_descriptions = &(sdl.GPUColorTargetDescription {
@@ -224,7 +301,6 @@ main :: proc() {
 		return
 	}
 	defer sdl.ReleaseGPUGraphicsPipeline(gpu_device, pipeline)
-
 
 
 	//get the size of the windows from SDL
@@ -253,7 +329,7 @@ main :: proc() {
 	TARGET_FPS: u64 : 60
 	TARGET_FRAME_TIME: u64 : 1000 / TARGET_FPS
 	last_ticks := sdl.GetTicks()
-	
+
 	GAME_LOOP: for {
 
 		new_ticks := sdl.GetTicks()
@@ -269,7 +345,14 @@ main :: proc() {
 		}
 
 		game_update(delta_time)
-		should_quit_game = render(&camera, orthograpic_projection, gpu_device, window, pipeline)
+		should_quit_game = render(
+			&camera,
+			orthograpic_projection,
+			gpu_device,
+			window,
+			pipeline,
+			vertex_buffer,
+		)
 
 		if should_quit_game {
 			if (ODIN_DEBUG) {
@@ -346,6 +429,7 @@ render :: proc(
 	gpu_device: ^sdl.GPUDevice,
 	window: ^sdl.Window,
 	pipeline: ^sdl.GPUGraphicsPipeline,
+	vertex_bufffer: ^sdl.GPUBuffer,
 ) -> bool {
 
 	//TODO add a command buffer to the gpu device
@@ -411,16 +495,29 @@ render :: proc(
 			store_op    = .STORE,
 		}
 
-		//TODO can do more render passes if needed, investigate why this is needed to understand 
 
+		//we need only one buffer and render_pass for this demo game and we dont doe parallel rendering
+
+		/* The app can begin new Render Passes and make new draws in the same command buffer 
+		until the entire scene is rendered. */
 		render_pass := sdl.BeginGPURenderPass(command_buffer, &color_target_info, 1, nil)
 		sdl.BindGPUGraphicsPipeline(render_pass, pipeline)
+
+		sdl.BindGPUVertexBuffers(
+			render_pass,
+			0,
+			&(sdl.GPUBufferBinding{buffer = vertex_bufffer, offset = 0}),
+			1, //number of vertex buffers
+		)
+
 
 		SLOT_INDEX_UBO: sdl.Uint32 : 0 //FIXME can i get this from shader after loading the shader like opengl glGenuniformLocation
 		sdl.PushGPUVertexUniformData(command_buffer, SLOT_INDEX_UBO, &ubo, size_of(ubo))
 		//vertex attributes
 		//uniform data
 		sdl.DrawGPUPrimitives(render_pass, 3, 1, 0, 0)
+
+
 		sdl.EndGPURenderPass(render_pass)
 
 	} else {
@@ -429,7 +526,7 @@ render :: proc(
 		)
 	}
 
-	//submit the command buffer
+	//submit the command buffer to the GPU
 	submit_command_buffer_OK: bool = sdl.SubmitGPUCommandBuffer(command_buffer)
 	if submit_command_buffer_OK == false {
 		log.error("ODIN SURVIVORS | SDL_SubmitGPUCommandBuffer failed: {}", sdl.GetError())

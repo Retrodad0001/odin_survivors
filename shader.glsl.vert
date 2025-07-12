@@ -4,18 +4,9 @@ layout(set=1,binding=0) uniform UBO {
     mat4 mvp;
 };
 
+layout(location=0) in vec3 in_position; // Vertex position input
+
 void main()
 {
-    vec4 position;
-    if (gl_VertexIndex == 0) {
-        position = vec4(-1, -1, 0, 1); // Example position
-    }
-    else if (gl_VertexIndex == 1) {
-        position = vec4(0, 1, 0, 1); // Example position
-    }
-    else if (gl_VertexIndex == 2) {
-        position = vec4(1, -1 , 0, 1); // Example position
-    }
-
-    gl_Position = mvp * position; // Apply the projection matrix
+    gl_Position = mvp * vec4(in_position,1); // Apply the projection matrix
 }
