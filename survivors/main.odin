@@ -22,6 +22,7 @@ shader_code_vert_text :: #load("..//shader.vert")
 //TODO integrate perf profiler
 //TODO handle that max size is 16
 
+
 //data for the uniform buffer object (UBO)
 UBO :: struct {
 	mvp: matrix[4, 4]f32,
@@ -170,6 +171,8 @@ main :: proc() {
 		return
 	}
 
+	camera := camera_init()
+
 	//TOOD enable me later entity_manager: EntityManager = entity_create_entity_manager()
 	TARGET_FPS: u64 : 60
 	TARGET_FRAME_TIME: u64 : 1000 / TARGET_FPS
@@ -251,48 +254,21 @@ main :: proc() {
 		far = 1,
 	)
 
-	// TODO put this in a camera struct
-	camera_x: f32 = 0
-	camera_y: f32 = 0
-	zoom: f32 = 1.0
-	zoom_speed: f32 = 4.0
-	camera_speed: f32 = 2.0
-
 	GAME_LOOP: for {
 
 		//calculate delta time
 		new_ticks := sdl.GetTicks()
 		delta_time: f32 = f32(new_ticks - last_ticks) / 1000
 
-		// process events
-		input_event: sdl.Event
-		for sdl.PollEvent(&input_event) {
+		should_quit_game := handle_input(&camera, delta_time)
 
-			#partial switch input_event.type {
-			case .QUIT:
-				break GAME_LOOP
-			case .KEY_DOWN:
-				if input_event.key.scancode == .ESCAPE do break GAME_LOOP
-				//add wasd movement camera
-				if input_event.key.scancode == .W || input_event.key.scancode == .UP {
-					camera_y += 1 * camera_speed * delta_time // Move up
-				} else if input_event.key.scancode == .S || input_event.key.scancode == .DOWN {
-					camera_y -= 1 * camera_speed * delta_time // Move down
-				} else if input_event.key.scancode == .A || input_event.key.scancode == .LEFT {
-					camera_x -= 1 * camera_speed * delta_time // Move left
-				} else if input_event.key.scancode == .D || input_event.key.scancode == .RIGHT {
-					camera_x += 1 * camera_speed * delta_time // Move right
-				}
-			}
-			//update zoom based on mouse wheel
-			if input_event.type == .MOUSE_WHEEL {
-				if input_event.wheel.y > 0 {
-					zoom += zoom_speed * delta_time // Zoom in
-				} else if input_event.wheel.y < 0 {
-					zoom -= zoom_speed * delta_time // Zoom out
-				}
-			}
+		if should_quit_game {
+			log.debug("ODIN SURVIVORS | quitting game")
+			break GAME_LOOP
 		}
+
+		game_update(delta_time)
+		render()
 
 		//get some command buffer from the gpu device
 		command_buffer := sdl.AcquireGPUCommandBuffer(gpu_device)
@@ -324,14 +300,13 @@ main :: proc() {
 			linalg.matrix4_rotate_f32(rotation_sprite, {0, 1, 0})
 		game_update(delta_time)
 
-
 		// set max and min zoom limits
-		zoom = clamp(zoom, 0.1, 10.0)
+		camera.zoom = clamp(camera.zoom, 0.1, camera.max_zoom)
 
 		// Create view matrix with camera position and zoom
 		view_camera_matrix :=
-			linalg.matrix4_scale_f32({zoom, zoom, 1}) *
-			linalg.matrix4_translate_f32({-camera_x, -camera_y, 0})
+			linalg.matrix4_scale_f32({camera.zoom, camera.zoom, 1}) *
+			linalg.matrix4_translate_f32({-camera.x, -camera.y, 0})
 
 		ubo := UBO {
 			mvp = orthograpic_projection * view_camera_matrix * model_view_matrix,
@@ -383,11 +358,60 @@ main :: proc() {
 			sdl.Delay(u32(TARGET_FRAME_TIME - frame_time))
 		}
 		last_ticks = new_ticks
+
+		free_all(context.temp_allocator)
+	}
+}
+
+@(require_results)
+handle_input :: proc(camera: ^Camera, delta_time: f32) -> bool { 	//true means should quit
+	// process events
+	should_quit: bool = false
+
+	input_event: sdl.Event
+	for sdl.PollEvent(&input_event) {
+
+		#partial switch input_event.type {
+		case .QUIT:
+			{
+				should_quit = true
+				continue
+			}
+		case .KEY_DOWN:
+			if input_event.key.scancode == .ESCAPE {
+				should_quit = true
+				continue
+			}
+
+			if input_event.key.scancode == .W || input_event.key.scancode == .UP {
+				camera.y += 1 * camera.speed * delta_time // Move up
+			} else if input_event.key.scancode == .S || input_event.key.scancode == .DOWN {
+				camera.y -= 1 * camera.speed * delta_time // Move down
+			} else if input_event.key.scancode == .A || input_event.key.scancode == .LEFT {
+				camera.x -= 1 * camera.speed * delta_time // Move left
+			} else if input_event.key.scancode == .D || input_event.key.scancode == .RIGHT {
+				camera.x += 1 * camera.speed * delta_time // Move right
+			}
+		}
+		//update zoom based on mouse wheel
+		if input_event.type == .MOUSE_WHEEL {
+			if input_event.wheel.y > 0 {
+				camera.zoom += camera.zoom_speed * delta_time // Zoom in
+			} else if input_event.wheel.y < 0 {
+				camera.zoom -= camera.zoom_speed * delta_time // Zoom out
+			}
+		}
 	}
 
+	return should_quit
 }
 
 
 game_update :: proc(delta_time: f32) {
 
+}
+
+render :: proc() {
+	//TODO render stuff here
+	//for now, we render in the main loop
 }
