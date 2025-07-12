@@ -4,23 +4,24 @@ import sdl "vendor:sdl3"
 
 @(private)
 Camera :: struct {
-	x:            f32,
-	y:            f32,
-	zoom:         f32,
-	max_zoom:     f32,
-	zoom_speed:   f32,
-	speed: f32,
+	x:          f32,
+	y:          f32,
+	zoom:       f32,
+	max_zoom:   f32,
+	zoom_speed: f32,
+	speed:      f32,
 }
 
 @(private)
+@(require_results)
 camera_init :: proc() -> Camera {
 	camera: Camera = Camera {
-		x            = 0,
-		y            = 0,
-		zoom         = 1.0,
-		max_zoom     = 10.0,
-		zoom_speed   = 4.0,
-		speed = 2.0,
+		x          = 0,
+		y          = 0,
+		zoom       = 1.0,
+		max_zoom   = 10.0,
+		zoom_speed = 4.0,
+		speed      = 2.0,
 	}
 
 	return camera
@@ -30,6 +31,7 @@ camera_init :: proc() -> Camera {
 DrawCommandBuffer :: union {}
 
 @(private)
+@(require_results)
 load_shader :: proc(
 	shader_code: []u8,
 	gpu_device: ^sdl.GPUDevice,

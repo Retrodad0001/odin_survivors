@@ -9,7 +9,7 @@ import sdl "vendor:sdl3"
 shader_code_fraq_text :: #load("..//shader.frag")
 shader_code_vert_text :: #load("..//shader.vert")
 
-//TODO draw quad from code instead of hardcoding it in shader //index buffers?
+//TODO draw one quad from code instead of hardcoding it in shader //index buffers?
 
 //TODO draw 10 enemies
 //TODO add textures
@@ -263,94 +263,28 @@ main :: proc() {
 		should_quit_game := handle_input(&camera, delta_time)
 
 		if should_quit_game {
+			if (ODIN_DEBUG) {
+				log.debug("ODIN SURVIVORS | quitting game")
+			}
+			break GAME_LOOP
+		}
+
+		game_update(delta_time)
+		should_quit_game = render(
+			&camera,
+			orthograpic_projection,
+			gpu_device,
+			window,
+			pipeline,
+		)
+
+		if should_quit_game {
+			if (ODIN_DEBUG) {
+				log.debug("ODIN SURVIVORS | quitting game")
+			}
 			log.debug("ODIN SURVIVORS | quitting game")
 			break GAME_LOOP
 		}
-
-		game_update(delta_time)
-		render()
-
-		//get some command buffer from the gpu device
-		command_buffer := sdl.AcquireGPUCommandBuffer(gpu_device)
-		//FIXME delete or reuse commandbuffer?
-
-		//get some swapchain texture (aka Render Target)
-		swapchain_texture: ^sdl.GPUTexture
-		acquire_swapchain_texture_OK: bool = sdl.WaitAndAcquireGPUSwapchainTexture(
-			command_buffer,
-			window,
-			&swapchain_texture,
-			nil,
-			nil,
-		)
-		if acquire_swapchain_texture_OK == false {
-			log.error(
-				"ODIN SURVIVORS | SDL_WaitAndAcquireGPUSwapchainTexture failed: {}",
-				sdl.GetError(),
-			)
-			if (ODIN_DEBUG) {
-				assert(false)
-			}
-			break GAME_LOOP
-		}
-
-		rotation_sprite :: 0 //FOR NOW, we dont use per sprite/entity rotation
-		model_view_matrix :=
-			linalg.matrix4_translate_f32({0, 0, -1}) *
-			linalg.matrix4_rotate_f32(rotation_sprite, {0, 1, 0})
-		game_update(delta_time)
-
-		// set max and min zoom limits
-		camera.zoom = clamp(camera.zoom, 0.1, camera.max_zoom)
-
-		// Create view matrix with camera position and zoom
-		view_camera_matrix :=
-			linalg.matrix4_scale_f32({camera.zoom, camera.zoom, 1}) *
-			linalg.matrix4_translate_f32({-camera.x, -camera.y, 0})
-
-		ubo := UBO {
-			mvp = orthograpic_projection * view_camera_matrix * model_view_matrix,
-		}
-
-		if (swapchain_texture != nil) {
-			CLEAR_COLOR: sdl.FColor : {0, 0.0, 0.1, 1}
-			//begin the render pass 
-			color_target_info := sdl.GPUColorTargetInfo {
-				texture     = swapchain_texture,
-				load_op     = .CLEAR,
-				clear_color = CLEAR_COLOR,
-				store_op    = .STORE,
-			}
-
-			//TODO can do more render passes if needed, investigate why this is needed to understand 
-
-			render_pass := sdl.BeginGPURenderPass(command_buffer, &color_target_info, 1, nil)
-			sdl.BindGPUGraphicsPipeline(render_pass, pipeline)
-
-			SLOT_INDEX_UBO: sdl.Uint32 : 0 //FIXME can i get this from shader after loading the shader like opengl glGenuniformLocation
-			sdl.PushGPUVertexUniformData(command_buffer, SLOT_INDEX_UBO, &ubo, size_of(ubo))
-			//vertex attributes
-			//uniform data
-			sdl.DrawGPUPrimitives(render_pass, 3, 1, 0, 0)
-			sdl.EndGPURenderPass(render_pass)
-
-		} else {
-			log.debug(
-				"ODIN SURVIVORS | swapchain_texture is nil ---> not rendering anything !!, maybe ui is minimized?",
-			)
-		}
-
-
-		//submit the command buffer
-		submit_command_buffer_OK: bool = sdl.SubmitGPUCommandBuffer(command_buffer)
-		if submit_command_buffer_OK == false {
-			log.error("ODIN SURVIVORS | SDL_SubmitGPUCommandBuffer failed: {}", sdl.GetError())
-			if (ODIN_DEBUG) {
-				assert(false)
-			}
-			break GAME_LOOP
-		}
-
 
 		//frame rate limiting
 		frame_time := sdl.GetTicks() - last_ticks
@@ -363,6 +297,7 @@ main :: proc() {
 	}
 }
 
+@(private)
 @(require_results)
 handle_input :: proc(camera: ^Camera, delta_time: f32) -> bool { 	//true means should quit
 	// process events
@@ -406,12 +341,112 @@ handle_input :: proc(camera: ^Camera, delta_time: f32) -> bool { 	//true means s
 	return should_quit
 }
 
-
+@(private)
 game_update :: proc(delta_time: f32) {
 
 }
 
-render :: proc() {
-	//TODO render stuff here
-	//for now, we render in the main loop
+@(private)
+@(require_results)
+render :: proc(
+	camera: ^Camera,
+	orthograpic_projection: linalg.Matrix4x4f32,
+	gpu_device: ^sdl.GPUDevice,
+	window: ^sdl.Window,
+	pipeline: ^sdl.GPUGraphicsPipeline,
+) -> bool {
+
+	//TODO add a command buffer to the gpu device
+	//TODO add a render pass to the command buffer
+	//TODO add a swapchain texture to the render pass
+
+	//create the command buffer
+	if (gpu_device == nil) {
+		log.error("ODIN SURVIVORS | GPU device is nil")
+		if (ODIN_DEBUG) {
+			assert(false)
+		}
+		return true
+	}
+	//get some command buffer from the gpu device
+	command_buffer := sdl.AcquireGPUCommandBuffer(gpu_device)
+	//FIXME delete or reuse commandbuffer?
+
+	//get some swapchain texture (aka Render Target)
+	swapchain_texture: ^sdl.GPUTexture
+	acquire_swapchain_texture_OK: bool = sdl.WaitAndAcquireGPUSwapchainTexture(
+		command_buffer,
+		window,
+		&swapchain_texture,
+		nil,
+		nil,
+	)
+	if acquire_swapchain_texture_OK == false {
+		log.error(
+			"ODIN SURVIVORS | SDL_WaitAndAcquireGPUSwapchainTexture failed: {}",
+			sdl.GetError(),
+		)
+		if (ODIN_DEBUG) {
+			assert(false)
+		}
+		return true
+	}
+
+	rotation_sprite :: 0 //FOR NOW, we dont use per sprite/entity rotation
+	model_view_matrix :=
+		linalg.matrix4_translate_f32({0, 0, -1}) *
+		linalg.matrix4_rotate_f32(rotation_sprite, {0, 1, 0})
+
+	// set max and min zoom limits
+	camera.zoom = clamp(camera.zoom, 0.1, camera.max_zoom)
+
+	// Create view matrix with camera position and zoom
+	view_camera_matrix :=
+		linalg.matrix4_scale_f32({camera.zoom, camera.zoom, 1}) *
+		linalg.matrix4_translate_f32({-camera.x, -camera.y, 0})
+
+	ubo := UBO {
+		mvp = orthograpic_projection * view_camera_matrix * model_view_matrix,
+	}
+
+	if (swapchain_texture != nil) {
+		CLEAR_COLOR: sdl.FColor : {0, 0.0, 0.1, 1}
+		//begin the render pass 
+		color_target_info := sdl.GPUColorTargetInfo {
+			texture     = swapchain_texture,
+			load_op     = .CLEAR,
+			clear_color = CLEAR_COLOR,
+			store_op    = .STORE,
+		}
+
+		//TODO can do more render passes if needed, investigate why this is needed to understand 
+
+		render_pass := sdl.BeginGPURenderPass(command_buffer, &color_target_info, 1, nil)
+		sdl.BindGPUGraphicsPipeline(render_pass, pipeline)
+
+		SLOT_INDEX_UBO: sdl.Uint32 : 0 //FIXME can i get this from shader after loading the shader like opengl glGenuniformLocation
+		sdl.PushGPUVertexUniformData(command_buffer, SLOT_INDEX_UBO, &ubo, size_of(ubo))
+		//vertex attributes
+		//uniform data
+		sdl.DrawGPUPrimitives(render_pass, 3, 1, 0, 0)
+		sdl.EndGPURenderPass(render_pass)
+
+	} else {
+		log.debug(
+			"ODIN SURVIVORS | swapchain_texture is nil ---> not rendering anything !!, maybe ui is minimized?",
+		)
+	}
+
+	//submit the command buffer
+	submit_command_buffer_OK: bool = sdl.SubmitGPUCommandBuffer(command_buffer)
+	if submit_command_buffer_OK == false {
+		log.error("ODIN SURVIVORS | SDL_SubmitGPUCommandBuffer failed: {}", sdl.GetError())
+		if (ODIN_DEBUG) {
+			assert(false)
+		}
+		return true
+	}
+
+	return false
+
 }
