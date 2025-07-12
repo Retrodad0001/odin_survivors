@@ -209,24 +209,20 @@ main :: proc() {
 
 	//vertex data (triangle)
 	Vec3 :: [3]f32
+	Vec4 :: [4]f32
 
-	vertices: []Vec3 = {
-		{-0.5, -0.5, 0}, // Top vertex
-		{0, 0.5, 0}, // Bottom left vertex
-		{0.5, -0.5, 0}, // Bottom right vertex
+	VertexData :: struct {
+		position: Vec3, //position of the vertex
+		color:    Vec4, //color of the vertex
+	}
+
+	vertices: []VertexData = {
+		{position = {-0.5, -0.5, 0}, color = {1, 0, 0, 1}},
+		{position = {0, 0.5, 0}, color = {0, 1, 0, 1}},
+		{position = {0.5, -0.5, 0}, color = {0, 0, 1, 1}},
 	}
 
 	vertices_byte_size := len(vertices) * size_of(vertices[0])
-
-	vertex_attributes := []sdl.GPUVertexAttribute {
-
-		//POSITION_IN
-		{
-			location = 0, //mapped to the shader attribute "in_position"
-			format   = .FLOAT3, //location 0 is the position
-			offset   = 0,
-		},
-	}
 
 	//create the vertex buffer
 	vertex_buffer := sdl.CreateGPUBuffer(
@@ -239,6 +235,7 @@ main :: proc() {
 		usage = .UPLOAD,
 		size  = u32(vertices_byte_size), //TODO can be more than just vertices for position
 	}
+
 	//upload the vertex data to GPU
 	transfer_buffer := sdl.CreateGPUTransferBuffer(gpu_device, transfer_buffer_create_info)
 	transfer_mem := sdl.MapGPUTransferBuffer(gpu_device, transfer_buffer, false)
@@ -269,8 +266,26 @@ main :: proc() {
 		}
 	}
 
+	sdl.ReleaseGPUTransferBuffer(gpu_device, transfer_buffer)
 
-	graphics_pipeline_create_info := sdl.GPUGraphicsPipelineCreateInfo {
+	vertex_attributes := []sdl.GPUVertexAttribute {
+
+		//POSITION_IN
+		{
+			location = 0, //mapped to the shader attribute "in_position"
+			format   = .FLOAT3, //location 0 is the position
+			offset   = u32(offset_of(VertexData, position)), //position is the first field in the vertex data
+		},
+
+		//COLOR_IN
+		{
+			location = 1, //mapped to the shader attribute "in_color"
+			format   = .FLOAT4, //location 1 is the color
+			offset   = u32(offset_of(VertexData, color)), //color comes after position in the vertex data
+		},
+	}
+
+		pipeline_create_info := sdl.GPUGraphicsPipelineCreateInfo {
 		vertex_shader = gpu_vertex_shader,
 		fragment_shader = gpu_fragment_shader,
 		primitive_type = .TRIANGLELIST,
@@ -278,7 +293,7 @@ main :: proc() {
 			num_vertex_buffers = 1,
 			vertex_buffer_descriptions = &(sdl.GPUVertexBufferDescription {
 					slot = 0,
-					pitch = size_of(Vec3),
+					pitch = size_of(VertexData),
 				}),
 			num_vertex_attributes = u32(len(vertex_attributes)),
 			vertex_attributes = raw_data(vertex_attributes),
@@ -292,7 +307,7 @@ main :: proc() {
 	}
 
 	//create the pipeline
-	pipeline := sdl.CreateGPUGraphicsPipeline(gpu_device, graphics_pipeline_create_info)
+	pipeline := sdl.CreateGPUGraphicsPipeline(gpu_device, pipeline_create_info)
 	if pipeline == nil {
 		log.error("ODIN SURVIVORS | SDL_CreateGPUGraphicsPipeline failed: {}", sdl.GetError())
 		if (ODIN_DEBUG) {
