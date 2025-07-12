@@ -9,10 +9,10 @@ import sdl "vendor:sdl3"
 shader_code_fraq_text :: #load("..//shader.frag")
 shader_code_vert_text :: #load("..//shader.vert")
 
-//TODO draw one quad from code instead of hardcoding it in shader //index buffers?
+
+//TODO add textures
 
 //TODO draw 10 enemies
-//TODO add textures
 //TODO add batch rendering
 //TODO use culling techniques to minimize pixel writes
 //TODO learn by adding parameter delta_time to update color triangle
@@ -217,12 +217,33 @@ main :: proc() {
 	}
 
 	vertices: []VertexData = {
-		{position = {-0.5, -0.5, 0}, color = {1, 0, 0, 1}},
-		{position = {0, 0.5, 0}, color = {0, 1, 0, 1}},
-		{position = {0.5, -0.5, 0}, color = {0, 0, 1, 1}},
+
+		//QUAD
+		{position = {-0.5, 0.5, 0}, color = {1, 0, 0, 1}}, //TOP LEFT
+		{position = {0.5, 0.5, 0}, color = {0, 1, 1, 1}}, //TOP RIGHT
+		{position = {-0.5, -0.5, 0}, color = {1, 0, 1, 1}}, //BOTTOM LEFT
+		{position = {0.5, -0.5, 0}, color = {1, 0, 1, 1}}, //BOTTOM RIGHT
 	}
 
 	vertices_byte_size := len(vertices) * size_of(vertices[0])
+
+	indices := []u32 {
+		0,
+		1,
+		2, //first triangle 
+		2,
+		1,
+		3, //second triangle
+	}
+
+	indices_byte_size := len(indices) * size_of(indices[0])
+
+
+	//create the vertex buffer
+	index_buffer := sdl.CreateGPUBuffer(
+		gpu_device,
+		{usage = {.INDEX}, size = u32(indices_byte_size)},
+	)
 
 	//create the vertex buffer
 	vertex_buffer := sdl.CreateGPUBuffer(
@@ -231,15 +252,18 @@ main :: proc() {
 	)
 
 
+	//tranfer buffer can upload vertex data and index data to the GPU
 	transfer_buffer_create_info := sdl.GPUTransferBufferCreateInfo {
 		usage = .UPLOAD,
-		size  = u32(vertices_byte_size), //TODO can be more than just vertices for position
+		size  = u32(vertices_byte_size + indices_byte_size),
 	}
 
 	//upload the vertex data to GPU
 	transfer_buffer := sdl.CreateGPUTransferBuffer(gpu_device, transfer_buffer_create_info)
-	transfer_mem := sdl.MapGPUTransferBuffer(gpu_device, transfer_buffer, false)
+	transfer_mem := cast([^]byte)sdl.MapGPUTransferBuffer(gpu_device, transfer_buffer, false)
 	mem.copy(transfer_mem, raw_data(vertices), vertices_byte_size)
+	mem.copy(transfer_mem[vertices_byte_size:], raw_data(indices), indices_byte_size)
+
 	sdl.UnmapGPUTransferBuffer(gpu_device, transfer_buffer)
 
 	copy_command_buffer := sdl.AcquireGPUCommandBuffer(gpu_device)
@@ -249,7 +273,14 @@ main :: proc() {
 	sdl.UploadToGPUBuffer(
 		copy_pass,
 		{transfer_buffer = transfer_buffer},
-		{buffer = vertex_buffer, offset = 0, size = u32(vertices_byte_size)},
+		{buffer = vertex_buffer, size = u32(vertices_byte_size)},
+		false,
+	)
+
+	sdl.UploadToGPUBuffer(
+		copy_pass,
+		{transfer_buffer = transfer_buffer, offset = u32(vertices_byte_size)},
+		{buffer = index_buffer, size = u32(indices_byte_size)},
 		false,
 	)
 
@@ -285,7 +316,7 @@ main :: proc() {
 		},
 	}
 
-		pipeline_create_info := sdl.GPUGraphicsPipelineCreateInfo {
+	pipeline_create_info := sdl.GPUGraphicsPipelineCreateInfo {
 		vertex_shader = gpu_vertex_shader,
 		fragment_shader = gpu_fragment_shader,
 		primitive_type = .TRIANGLELIST,
@@ -367,6 +398,7 @@ main :: proc() {
 			window,
 			pipeline,
 			vertex_buffer,
+			index_buffer,
 		)
 
 		if should_quit_game {
@@ -445,6 +477,7 @@ render :: proc(
 	window: ^sdl.Window,
 	pipeline: ^sdl.GPUGraphicsPipeline,
 	vertex_bufffer: ^sdl.GPUBuffer,
+	index_buffer: ^sdl.GPUBuffer,
 ) -> bool {
 
 	//TODO add a command buffer to the gpu device
@@ -525,12 +558,14 @@ render :: proc(
 			1, //number of vertex buffers
 		)
 
+		sdl.BindGPUIndexBuffer(render_pass, {buffer = index_buffer}, ._32BIT)
+
 
 		SLOT_INDEX_UBO: sdl.Uint32 : 0 //FIXME can i get this from shader after loading the shader like opengl glGenuniformLocation
 		sdl.PushGPUVertexUniformData(command_buffer, SLOT_INDEX_UBO, &ubo, size_of(ubo))
 		//vertex attributes
 		//uniform data
-		sdl.DrawGPUPrimitives(render_pass, 3, 1, 0, 0)
+		sdl.DrawGPUIndexedPrimitives(render_pass, 6, 1, 0, 0, 0)
 
 
 		sdl.EndGPURenderPass(render_pass)
