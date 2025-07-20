@@ -6,19 +6,19 @@ import "core:math/linalg"
 import "core:mem"
 import sdl "vendor:sdl3"
 
-shader_code_fraq_text :: #load("..//shader.frag")
-shader_code_vert_text :: #load("..//shader.vert")
+shader_code_fraq_text :: #load("..//fragment.spirv")
+shader_code_vert_text :: #load("..//vertext.spirv")
 
 
 //TODO add textures
 
+
 //TODO draw 10 enemies
-//TODO add batch rendering
-//TODO use culling techniques to minimize pixel writes
-//TODO learn by adding parameter delta_time to update color triangle
-//TODO learn moving the camera around en zoom (2D)
-//TODO add effect to only one enemy
+//TODO use draw debugger
+//TODO add batch rendering and check if it works in draw debugger
 //TODO destroy / delete SDL3 stuff
+//TODO add effect to only one enemy
+//TODO use culling techniques to minimize pixel writes
 //TODO INTEGRATE RAD DEBUGGER
 //TODO integrate perf profiler
 //TODO handle that max size is 16
@@ -219,10 +219,10 @@ main :: proc() {
 	vertices: []VertexData = {
 
 		//QUAD
-		{position = {-0.5, 0.5, 0}, color = {1, 0, 0, 1}}, //TOP LEFT
-		{position = {0.5, 0.5, 0}, color = {0, 1, 1, 1}}, //TOP RIGHT
-		{position = {-0.5, -0.5, 0}, color = {1, 0, 1, 1}}, //BOTTOM LEFT
-		{position = {0.5, -0.5, 0}, color = {1, 0, 1, 1}}, //BOTTOM RIGHT
+		{position = {-1, 1, 0}, color = {1, 0, 0, 1}}, //TOP LEFT
+		{position = {1, 1, 0}, color = {0, 1, 1, 1}}, //TOP RIGHT
+		{position = {-1, -1, 0}, color = {1, 0, 1, 1}}, //BOTTOM LEFT
+		{position = {1, -1, 0}, color = {1, 0, 1, 1}}, //BOTTOM RIGHT
 	}
 
 	vertices_byte_size := len(vertices) * size_of(vertices[0])
