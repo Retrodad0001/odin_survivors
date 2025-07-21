@@ -7,15 +7,17 @@ import "core:mem"
 import sdl "vendor:sdl3"
 
 shader_code_fraq_text :: #load("..//fragment.spirv")
-shader_code_vert_text :: #load("..//vertext.spirv")
+shader_code_vert_text :: #load("..//vertex.spirv")
 
 
+//TODO RemedyBG
 //TODO add textures
 
-
 //TODO draw 10 enemies
-//TODO use draw debugger
+
 //TODO add batch rendering and check if it works in draw debugger
+
+
 //TODO destroy / delete SDL3 stuff
 //TODO add effect to only one enemy
 //TODO use culling techniques to minimize pixel writes
@@ -244,15 +246,17 @@ main :: proc() {
 		gpu_device,
 		{usage = {.INDEX}, size = u32(indices_byte_size)},
 	)
+	defer sdl.ReleaseGPUBuffer(gpu_device,index_buffer)
 
 	//create the vertex buffer
 	vertex_buffer := sdl.CreateGPUBuffer(
 		gpu_device,
 		{usage = {.VERTEX}, size = u32(vertices_byte_size)},
 	)
+	defer sdl.ReleaseGPUBuffer(gpu_device,vertex_buffer)
 
 
-	//tranfer buffer can upload vertex data and index data to the GPU
+	//transfer buffer can upload vertex data and index data to the GPU
 	transfer_buffer_create_info := sdl.GPUTransferBufferCreateInfo {
 		usage = .UPLOAD,
 		size  = u32(vertices_byte_size + indices_byte_size),
@@ -267,6 +271,7 @@ main :: proc() {
 	sdl.UnmapGPUTransferBuffer(gpu_device, transfer_buffer)
 
 	copy_command_buffer := sdl.AcquireGPUCommandBuffer(gpu_device)
+	
 
 	copy_pass := sdl.BeginGPUCopyPass(copy_command_buffer)
 
@@ -361,7 +366,7 @@ main :: proc() {
 	}
 
 	aspect_ratio: f32 = f32(window_size.x) / f32(window_size.y)
-	orthograpic_projection: linalg.Matrix4x4f32 = linalg.matrix_ortho3d_f32(
+	orthographic_projection: linalg.Matrix4x4f32 = linalg.matrix_ortho3d_f32(
 		left = -2.0 * aspect_ratio,
 		right = 2.0 * aspect_ratio,
 		bottom = -2.0,
@@ -393,7 +398,7 @@ main :: proc() {
 		game_update(delta_time)
 		should_quit_game = render(
 			&camera,
-			orthograpic_projection,
+			orthographic_projection,
 			gpu_device,
 			window,
 			pipeline,
@@ -421,8 +426,7 @@ main :: proc() {
 
 @(private)
 @(require_results)
-handle_input :: proc(camera: ^Camera, delta_time: f32) -> bool { 	//true means should quit
-	// process events
+handle_input :: proc(camera: ^Camera, delta_time: f32) -> bool {
 	should_quit: bool = false
 
 	input_event: sdl.Event
@@ -472,7 +476,7 @@ game_update :: proc(delta_time: f32) {
 @(require_results)
 render :: proc(
 	camera: ^Camera,
-	orthograpic_projection: linalg.Matrix4x4f32,
+	orthographic_projection: linalg.Matrix4x4f32,
 	gpu_device: ^sdl.GPUDevice,
 	window: ^sdl.Window,
 	pipeline: ^sdl.GPUGraphicsPipeline,
@@ -516,7 +520,7 @@ render :: proc(
 		return true
 	}
 
-	rotation_sprite :: 0 //FOR NOW, we dont use per sprite/entity rotation
+	rotation_sprite :: 0 //FOR NOW, we don't use per sprite/entity rotation
 	model_view_matrix :=
 		linalg.matrix4_translate_f32({0, 0, -1}) *
 		linalg.matrix4_rotate_f32(rotation_sprite, {0, 1, 0})
@@ -530,7 +534,7 @@ render :: proc(
 		linalg.matrix4_translate_f32({-camera.x, -camera.y, 0})
 
 	ubo := UBO {
-		mvp = orthograpic_projection * view_camera_matrix * model_view_matrix,
+		mvp = orthographic_projection * view_camera_matrix * model_view_matrix,
 	}
 
 	if (swapchain_texture != nil) {
@@ -544,7 +548,7 @@ render :: proc(
 		}
 
 
-		//we need only one buffer and render_pass for this demo game and we dont doe parallel rendering
+		//we need only one buffer and render_pass for this demo game and we don't doe parallel rendering
 
 		/* The app can begin new Render Passes and make new draws in the same command buffer 
 		until the entire scene is rendered. */
@@ -561,7 +565,7 @@ render :: proc(
 		sdl.BindGPUIndexBuffer(render_pass, {buffer = index_buffer}, ._32BIT)
 
 
-		SLOT_INDEX_UBO: sdl.Uint32 : 0 //FIXME can i get this from shader after loading the shader like opengl glGenuniformLocation
+		SLOT_INDEX_UBO: sdl.Uint32 : 0
 		sdl.PushGPUVertexUniformData(command_buffer, SLOT_INDEX_UBO, &ubo, size_of(ubo))
 		//vertex attributes
 		//uniform data

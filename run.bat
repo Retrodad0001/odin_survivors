@@ -7,13 +7,13 @@ set OUT_DIR=build\debug\win64
 
 echo Delete all previous compiled shader files
 del /q "fragment.spirv"
-del /q "vertext.spirv"
+del /q "vertex.spirv"
 
 echo compile shaders
 REM Make sure you have glslc installed and in your PATH (install the Vulkan SDK first)
 glslc shader.glsl.frag -o fragment.spirv
 IF %ERRORLEVEL% NEQ 0 exit /b 1
-glslc shader.glsl.vert -o vertext.spirv
+glslc shader.glsl.vert -o vertex.spirv
 IF %ERRORLEVEL% NEQ 0 exit /b 1
 
 echo run test
