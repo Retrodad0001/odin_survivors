@@ -10,6 +10,8 @@ import stbi "vendor:stb/image"
 shader_code_fraq_text :: #load("..//fragment.spirv")
 shader_code_vert_text :: #load("..//vertex.spirv")
 
+SPRITE_COUNT :: 2
+
 
 //TODO draw only idle soldier
 
@@ -210,14 +212,24 @@ main :: proc() {
 	log.debug("ODIN SURVIVORS | end Loading shaders")
 
 
+	WHITE :: sdl.FColor{1, 1, 1, 1}
+	OTHER :: sdl.FColor{0, 1, 1, 1}
+
 	//setup vertex attributes and vertex buffer for the pipeline
 	vertices: []VertexData = {
+
 		//QUAD #1
-		{position = {-1, 1, 0}, color = {1, 1, 1, 1}, uv = {0, 0}}, //TOP LEFT
-		{position = {1, 1, 0}, color = {1, 1, 1, 1}, uv = {1, 0}}, //TOP RIGHT
-		{position = {-1, -1, 0}, color = {1, 1, 1, 1}, uv = {0, 1}}, //BOTTOM LEFT
-		{position = {1, -1, 0}, color = {1, 1, 1, 1}, uv = {1, 1}}, //BOTTOM RIGHT
+		{position = {-1, 1, 0}, color = WHITE, uv = {0, 0}}, //TOP LEFT
+		{position = {1, 1, 0}, color = WHITE, uv = {1, 0}}, //TOP RIGHT
+		{position = {-1, -1, 0}, color = WHITE, uv = {0, 1}}, //BOTTOM LEFT
+		{position = {1, -1, 0}, color = WHITE, uv = {1, 1}}, //BOTTOM RIGHT
+		//QUAD #2
+		{position = {0.5, -0.5, 0}, color = OTHER, uv = {0, 0}}, //TOP LEFT
+		{position = {1.5, -0.5, 0}, color = OTHER, uv = {1, 0}}, //TOP RIGHT
+		{position = {1.5, 0.5, 0}, color = OTHER, uv = {0, 1}}, //BOTTOM LEFT
+		{position = {0.5, 0.5, 0}, color = OTHER, uv = {1, 1}}, //BOTTOM RIGHT
 	}
+
 
 	vertices_byte_size := len(vertices) * size_of(vertices[0])
 
@@ -310,8 +322,19 @@ main :: proc() {
 	sdl.ReleaseGPUTransferBuffer(gpu_device, transfer_buffer)
 	sdl.ReleaseGPUTransferBuffer(gpu_device, texture_transfer_buffer)
 
-	gpu_sampler := sdl.CreateGPUSampler(gpu_device, {})
-	//TODO ReleaseGPUSampler
+	gpu_sampler := sdl.CreateGPUSampler(
+		gpu_device,
+		{
+			min_filter = .NEAREST,
+			mag_filter = .NEAREST,
+			mipmap_mode = .NEAREST,
+			address_mode_u = .CLAMP_TO_EDGE,
+			address_mode_v = .CLAMP_TO_EDGE,
+			address_mode_w = .CLAMP_TO_EDGE,
+		},
+	)
+
+	defer sdl.ReleaseGPUSampler(gpu_device, gpu_sampler)
 
 	submit_command_buffer_OK: bool = sdl.SubmitGPUCommandBuffer(copy_command_buffer)
 	if submit_command_buffer_OK == false {
@@ -350,6 +373,15 @@ main :: proc() {
 			num_color_targets = 1,
 			color_target_descriptions = &(sdl.GPUColorTargetDescription {
 					format = sdl.GetGPUSwapchainTextureFormat(gpu_device, window),
+					blend_state = {
+						enable_blend = true,
+						color_blend_op = .ADD,
+						alpha_blend_op = .ADD,
+						src_color_blendfactor = .SRC_ALPHA,
+						dst_color_blendfactor = .SRC_ALPHA,
+						src_alpha_blendfactor = .SRC_ALPHA,
+						dst_alpha_blendfactor = .SRC_ALPHA,
+					},
 				}),
 		},
 	}
@@ -582,7 +614,14 @@ render :: proc(
 			sampler = gpu_sampler,
 		}
 		sdl.BindGPUFragmentSamplers(render_pass, 0, &texture_binding, 1)
-		sdl.DrawGPUIndexedPrimitives(render_pass, 6, 1, 0, 0, 0)
+		sdl.DrawGPUIndexedPrimitives(
+			render_pass = render_pass,
+			num_indices = SPRITE_COUNT * 6,
+			num_instances = 1,
+			first_index = 0,
+			vertex_offset = 0,
+			first_instance = 0,
+		)
 
 
 		sdl.EndGPURenderPass(render_pass)
