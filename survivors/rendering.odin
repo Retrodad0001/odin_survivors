@@ -2,6 +2,18 @@ package survivors
 
 import sdl "vendor:sdl3"
 
+//vertex data
+@(private)
+Vec3 :: [3]f32
+@(private)
+Vec4 :: [4]f32
+
+@(private)
+VertexData :: struct {
+	position: Vec3, //position of the vertex
+	color:    Vec4, //color of the vertex
+}
+
 @(private)
 Camera :: struct {
 	x:          f32,

@@ -208,16 +208,6 @@ main :: proc() {
 	log.debug("ODIN SURVIVORS | end Loading shaders")
 
 	//setup vertex attributes and vertex buffer for the pipeline
-
-	//vertex data (triangle)
-	Vec3 :: [3]f32
-	Vec4 :: [4]f32
-
-	VertexData :: struct {
-		position: Vec3, //position of the vertex
-		color:    Vec4, //color of the vertex
-	}
-
 	vertices: []VertexData = {
 
 		//QUAD
@@ -240,20 +230,19 @@ main :: proc() {
 
 	indices_byte_size := len(indices) * size_of(indices[0])
 
-
 	//create the vertex buffer
 	index_buffer := sdl.CreateGPUBuffer(
 		gpu_device,
 		{usage = {.INDEX}, size = u32(indices_byte_size)},
 	)
-	defer sdl.ReleaseGPUBuffer(gpu_device,index_buffer)
+	defer sdl.ReleaseGPUBuffer(gpu_device, index_buffer)
 
 	//create the vertex buffer
 	vertex_buffer := sdl.CreateGPUBuffer(
 		gpu_device,
 		{usage = {.VERTEX}, size = u32(vertices_byte_size)},
 	)
-	defer sdl.ReleaseGPUBuffer(gpu_device,vertex_buffer)
+	defer sdl.ReleaseGPUBuffer(gpu_device, vertex_buffer)
 
 
 	//transfer buffer can upload vertex data and index data to the GPU
@@ -271,7 +260,7 @@ main :: proc() {
 	sdl.UnmapGPUTransferBuffer(gpu_device, transfer_buffer)
 
 	copy_command_buffer := sdl.AcquireGPUCommandBuffer(gpu_device)
-	
+
 
 	copy_pass := sdl.BeginGPUCopyPass(copy_command_buffer)
 
