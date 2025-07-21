@@ -5,25 +5,26 @@ import "core:log"
 import "core:math/linalg"
 import "core:mem"
 import sdl "vendor:sdl3"
+import stbi "vendor:stb/image"
 
 shader_code_fraq_text :: #load("..//fragment.spirv")
 shader_code_vert_text :: #load("..//vertex.spirv")
 
 
-//TODO RemedyBG
-//TODO add textures
+//TODO draw only idle soldier
 
+//TODO RemedyBG
 //TODO draw 10 enemies
 
 //TODO add batch rendering and check if it works in draw debugger
 
+//TODO add debug info
 
-//TODO destroy / delete SDL3 stuff
 //TODO add effect to only one enemy
+
 //TODO use culling techniques to minimize pixel writes
-//TODO INTEGRATE RAD DEBUGGER
-//TODO integrate perf profiler
-//TODO handle that max size is 16
+
+//TODO integrate perf profiler spalt
 
 
 sdl_log :: proc "c" (
@@ -171,14 +172,14 @@ main :: proc() {
 
 
 	//SHADER SETUP
-	NUMBER_OF_UNIFORMBUFFERS_VERTEX: u32 = 1
-	NUMBER_OF_UNIFORMBUFFERS_FRAGMENT: u32 = 0
+
 	log.debug("ODIN SURVIVORS | start Loading shaders")
 	gpu_vertex_shader: ^sdl.GPUShader = load_shader(
 		shader_code_vert_text,
 		gpu_device,
 		.VERTEX,
-		NUMBER_OF_UNIFORMBUFFERS_VERTEX,
+		num_uniform_buffers = 1,
+		num_samplers = 0,
 	)
 	if gpu_vertex_shader == nil {
 		log.error("ODIN SURVIVORS | SDL_CreateGPUShader (vertex) failed: {}", sdl.GetError())
@@ -192,7 +193,8 @@ main :: proc() {
 		shader_code_fraq_text,
 		gpu_device,
 		.FRAGMENT,
-		NUMBER_OF_UNIFORMBUFFERS_FRAGMENT,
+		num_uniform_buffers = 1,
+		num_samplers = 1,
 	)
 
 	if gpu_fragment_shader == nil {
@@ -207,14 +209,14 @@ main :: proc() {
 	sdl.ReleaseGPUShader(gpu_device, gpu_fragment_shader)
 	log.debug("ODIN SURVIVORS | end Loading shaders")
 
+
 	//setup vertex attributes and vertex buffer for the pipeline
 	vertices: []VertexData = {
-
-		//QUAD
-		{position = {-1, 1, 0}, color = {1, 0, 0, 1}}, //TOP LEFT
-		{position = {1, 1, 0}, color = {0, 1, 1, 1}}, //TOP RIGHT
-		{position = {-1, -1, 0}, color = {1, 0, 1, 1}}, //BOTTOM LEFT
-		{position = {1, -1, 0}, color = {1, 0, 1, 1}}, //BOTTOM RIGHT
+		//QUAD #1
+		{position = {-1, 1, 0}, color = {1, 1, 1, 1}, uv = {0, 0}}, //TOP LEFT
+		{position = {1, 1, 0}, color = {1, 1, 1, 1}, uv = {1, 0}}, //TOP RIGHT
+		{position = {-1, -1, 0}, color = {1, 1, 1, 1}, uv = {0, 1}}, //BOTTOM LEFT
+		{position = {1, -1, 0}, color = {1, 1, 1, 1}, uv = {1, 1}}, //BOTTOM RIGHT
 	}
 
 	vertices_byte_size := len(vertices) * size_of(vertices[0])
@@ -235,32 +237,51 @@ main :: proc() {
 		gpu_device,
 		{usage = {.INDEX}, size = u32(indices_byte_size)},
 	)
-	defer sdl.ReleaseGPUBuffer(gpu_device, index_buffer)
 
 	//create the vertex buffer
 	vertex_buffer := sdl.CreateGPUBuffer(
 		gpu_device,
 		{usage = {.VERTEX}, size = u32(vertices_byte_size)},
 	)
-	defer sdl.ReleaseGPUBuffer(gpu_device, vertex_buffer)
-
-
-	//transfer buffer can upload vertex data and index data to the GPU
-	transfer_buffer_create_info := sdl.GPUTransferBufferCreateInfo {
-		usage = .UPLOAD,
-		size  = u32(vertices_byte_size + indices_byte_size),
-	}
 
 	//upload the vertex data to GPU
-	transfer_buffer := sdl.CreateGPUTransferBuffer(gpu_device, transfer_buffer_create_info)
+	transfer_buffer := sdl.CreateGPUTransferBuffer(
+		gpu_device,
+		{usage = .UPLOAD, size = u32(vertices_byte_size + indices_byte_size)},
+	)
 	transfer_mem := cast([^]byte)sdl.MapGPUTransferBuffer(gpu_device, transfer_buffer, false)
 	mem.copy(transfer_mem, raw_data(vertices), vertices_byte_size)
 	mem.copy(transfer_mem[vertices_byte_size:], raw_data(indices), indices_byte_size)
-
 	sdl.UnmapGPUTransferBuffer(gpu_device, transfer_buffer)
 
-	copy_command_buffer := sdl.AcquireGPUCommandBuffer(gpu_device)
 
+	//LOAD ATLAS
+	img_size: [2]i32
+	pixels := stbi.load("assets/spritesheet.png", &img_size.x, &img_size.y, nil, 4) //4 bytes based on format
+	pixels_byte_size := img_size.x * img_size.y * 4 //*4 bytes
+	gpu_texture := sdl.CreateGPUTexture(
+		gpu_device,
+		{
+			format = .R8G8B8A8_UNORM,
+			usage = {.SAMPLER},
+			width = u32(img_size.x),
+			height = u32(img_size.y),
+			layer_count_or_depth = 1,
+			num_levels = 1,
+		},
+	)
+
+	texture_transfer_buffer := sdl.CreateGPUTransferBuffer(
+		gpu_device,
+		{usage = .UPLOAD, size = u32(pixels_byte_size)},
+	)
+
+	texture_transfer_mem := sdl.MapGPUTransferBuffer(gpu_device, texture_transfer_buffer, false)
+	mem.copy(texture_transfer_mem, pixels, int(pixels_byte_size))
+	sdl.UnmapGPUTransferBuffer(gpu_device, texture_transfer_buffer)
+
+
+	copy_command_buffer := sdl.AcquireGPUCommandBuffer(gpu_device)
 
 	copy_pass := sdl.BeginGPUCopyPass(copy_command_buffer)
 
@@ -278,7 +299,19 @@ main :: proc() {
 		false,
 	)
 
+	sdl.UploadToGPUTexture(
+		copy_pass,
+		{transfer_buffer = texture_transfer_buffer, offset = 0},
+		{texture = gpu_texture, w = u32(img_size.x), h = u32(img_size.y), d = 1},
+		false,
+	)
+
 	sdl.EndGPUCopyPass(copy_pass)
+	sdl.ReleaseGPUTransferBuffer(gpu_device, transfer_buffer)
+	sdl.ReleaseGPUTransferBuffer(gpu_device, texture_transfer_buffer)
+
+	gpu_sampler := sdl.CreateGPUSampler(gpu_device, {})
+	//TODO ReleaseGPUSampler
 
 	submit_command_buffer_OK: bool = sdl.SubmitGPUCommandBuffer(copy_command_buffer)
 	if submit_command_buffer_OK == false {
@@ -291,23 +324,13 @@ main :: proc() {
 		}
 	}
 
-	sdl.ReleaseGPUTransferBuffer(gpu_device, transfer_buffer)
-
 	vertex_attributes := []sdl.GPUVertexAttribute {
-
 		//POSITION_IN
-		{
-			location = 0, //mapped to the shader attribute "in_position"
-			format   = .FLOAT3, //location 0 is the position
-			offset   = u32(offset_of(VertexData, position)), //position is the first field in the vertex data
-		},
-
+		{location = 0, format = .FLOAT3, offset = u32(offset_of(VertexData, position))},
 		//COLOR_IN
-		{
-			location = 1, //mapped to the shader attribute "in_color"
-			format   = .FLOAT4, //location 1 is the color
-			offset   = u32(offset_of(VertexData, color)), //color comes after position in the vertex data
-		},
+		{location = 1, format = .FLOAT4, offset = u32(offset_of(VertexData, color))},
+		//UV_IN
+		{location = 2, format = .FLOAT2, offset = u32(offset_of(VertexData, uv))},
 	}
 
 	pipeline_create_info := sdl.GPUGraphicsPipelineCreateInfo {
@@ -393,6 +416,8 @@ main :: proc() {
 			pipeline,
 			vertex_buffer,
 			index_buffer,
+			gpu_texture,
+			gpu_sampler,
 		)
 
 		if should_quit_game {
@@ -471,6 +496,8 @@ render :: proc(
 	pipeline: ^sdl.GPUGraphicsPipeline,
 	vertex_bufffer: ^sdl.GPUBuffer,
 	index_buffer: ^sdl.GPUBuffer,
+	gpu_texture: ^sdl.GPUTexture,
+	gpu_sampler: ^sdl.GPUSampler,
 ) -> bool {
 
 	//TODO add a command buffer to the gpu device
@@ -536,12 +563,8 @@ render :: proc(
 			store_op    = .STORE,
 		}
 
-
-		//we need only one buffer and render_pass for this demo game and we don't doe parallel rendering
-
-		/* The app can begin new Render Passes and make new draws in the same command buffer 
-		until the entire scene is rendered. */
 		render_pass := sdl.BeginGPURenderPass(command_buffer, &color_target_info, 1, nil)
+
 		sdl.BindGPUGraphicsPipeline(render_pass, pipeline)
 
 		sdl.BindGPUVertexBuffers(
@@ -552,12 +575,13 @@ render :: proc(
 		)
 
 		sdl.BindGPUIndexBuffer(render_pass, {buffer = index_buffer}, ._32BIT)
+		sdl.PushGPUVertexUniformData(command_buffer, 0, &ubo, size_of(ubo))
 
-
-		SLOT_INDEX_UBO: sdl.Uint32 : 0
-		sdl.PushGPUVertexUniformData(command_buffer, SLOT_INDEX_UBO, &ubo, size_of(ubo))
-		//vertex attributes
-		//uniform data
+		texture_binding := sdl.GPUTextureSamplerBinding {
+			texture = gpu_texture,
+			sampler = gpu_sampler,
+		}
+		sdl.BindGPUFragmentSamplers(render_pass, 0, &texture_binding, 1)
 		sdl.DrawGPUIndexedPrimitives(render_pass, 6, 1, 0, 0, 0)
 
 

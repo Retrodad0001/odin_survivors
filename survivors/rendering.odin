@@ -5,13 +5,13 @@ import sdl "vendor:sdl3"
 //vertex data
 @(private)
 Vec3 :: [3]f32
-@(private)
-Vec4 :: [4]f32
+
 
 @(private)
 VertexData :: struct {
 	position: Vec3, //position of the vertex
-	color:    Vec4, //color of the vertex
+	color:    sdl.FColor, //color of the vertex
+	uv:       [2]f32,
 }
 
 @(private)
@@ -52,16 +52,18 @@ DrawCommandBuffer :: union {}
 load_shader :: proc(
 	shader_code: []u8,
 	gpu_device: ^sdl.GPUDevice,
-	stage: sdl.GPUShaderStage,
-	num_uniform_b: u32,
+	shader_stage: sdl.GPUShaderStage,
+	num_uniform_buffers: u32,
+	num_samplers: u32,
 ) -> ^sdl.GPUShader {
 	shader_create_info := sdl.GPUShaderCreateInfo {
 		code_size           = len(shader_code),
 		code                = raw_data(shader_code),
 		entrypoint          = "main",
 		format              = {.SPIRV},
-		stage               = stage,
-		num_uniform_buffers = num_uniform_b,
+		stage               = shader_stage,
+		num_uniform_buffers = num_uniform_buffers,
+		num_samplers        = num_samplers,
 	}
 
 	return sdl.CreateGPUShader(gpu_device, shader_create_info)
