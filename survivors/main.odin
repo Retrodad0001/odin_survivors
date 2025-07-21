@@ -11,6 +11,9 @@ shader_code_fraq_text :: #load("..//fragment.spirv")
 shader_code_vert_text :: #load("..//vertex.spirv")
 
 SPRITE_COUNT :: 2
+COLOR_WHITE :: sdl.FColor{1, 1, 1, 1}
+COLOR_OTHER :: sdl.FColor{0, 1, 1, 1}
+COLOR_BLACK :: sdl.FColor{0, 0, 0, 0}
 
 
 //TODO draw only idle soldier
@@ -212,34 +215,66 @@ main :: proc() {
 	log.debug("ODIN SURVIVORS | end Loading shaders")
 
 
-	WHITE :: sdl.FColor{1, 1, 1, 1}
-	OTHER :: sdl.FColor{0, 1, 1, 1}
+	//TODO set max sprite count instead of dynamic
+	//vertices: []SpriteData = {}
 
-	//setup vertex attributes and vertex buffer for the pipeline
-	vertices: []VertexData = {
+	//for each sprite add data
+	i := 2
+	for i < SPRITE_COUNT {
+		
 
-		//QUAD #1
-		{position = {-1, 1, 0}, color = WHITE, uv = {0, 0}}, //TOP LEFT
-		{position = {1, 1, 0}, color = WHITE, uv = {1, 0}}, //TOP RIGHT
-		{position = {-1, -1, 0}, color = WHITE, uv = {0, 1}}, //BOTTOM LEFT
-		{position = {1, -1, 0}, color = WHITE, uv = {1, 1}}, //BOTTOM RIGHT
-		//QUAD #2
-		{position = {0.5, -0.5, 0}, color = OTHER, uv = {0, 0}}, //TOP LEFT
-		{position = {1.5, -0.5, 0}, color = OTHER, uv = {1, 0}}, //TOP RIGHT
-		{position = {1.5, 0.5, 0}, color = OTHER, uv = {0, 1}}, //BOTTOM LEFT
-		{position = {0.5, 0.5, 0}, color = OTHER, uv = {1, 1}}, //BOTTOM RIGHT
+		i += 1
 	}
 
+		// vertices[0].position = {-1, 1, 0}
+		// vertices[0].color = COLOR_WHITE
+		// vertices[0].uv = {0, 0}
+
+		// vertices[1].position = {1, 1, 0}
+		// vertices[1].color = COLOR_WHITE
+		// vertices[1].uv = {1, 0}
+
+		// vertices[2].position = {-1, -1, 0}
+		// vertices[2].color = COLOR_WHITE
+		// vertices[2].uv = {0, 1}
+
+		// vertices[3].position = {1, -1, 0}
+		// vertices[3].color = COLOR_WHITE
+		// vertices[3].uv = {1, 1}
+
+	// //setup vertex attributes and vertex buffer for the pipeline
+	vertices: []SpriteData = {
+
+		//QUAD #1
+		{position = {-1, 1, 0}, color = COLOR_WHITE, uv = {0, 0}}, //TOP LEFT
+		{position = {1, 1, 0}, color = COLOR_WHITE, uv = {1, 0}}, //TOP RIGHT
+		{position = {-1, -1, 0}, color = COLOR_WHITE, uv = {0, 1}}, //BOTTOM LEFT
+		{position = {1, -1, 0}, color = COLOR_WHITE, uv = {1, 1}}, //BOTTOM RIGHT
+
+		//QUAD #2
+		{position = {-1, 1, 0}, color = COLOR_WHITE, uv = {0, 0}}, //TOP LEFT
+		{position = {1, 1, 0}, color = COLOR_WHITE, uv = {1, 0}}, //TOP RIGHT
+		{position = {-1, -1, 0}, color = COLOR_WHITE, uv = {0, 1}}, //BOTTOM LEFT
+		{position = {1, -1, 0}, color = COLOR_WHITE, uv = {1, 1}}, //BOTTOM RIGHT
+	}
 
 	vertices_byte_size := len(vertices) * size_of(vertices[0])
 
 	indices := []u32 {
+
+		//0 tm 4
 		0,
 		1,
 		2, //first triangle 
 		2,
 		1,
 		3, //second triangle
+		0 + 4,
+		1 + 4,
+		2 + 4, //first triangle 
+		2 + 4,
+		1 + 4,
+		3 + 4, //second triangle
 	}
 
 	indices_byte_size := len(indices) * size_of(indices[0])
@@ -251,16 +286,17 @@ main :: proc() {
 	)
 
 	//create the vertex buffer
-	vertex_buffer := sdl.CreateGPUBuffer(
+	sprite_data_buffer := sdl.CreateGPUBuffer(
 		gpu_device,
-		{usage = {.VERTEX}, size = u32(vertices_byte_size)},
+		{usage = {.VERTEX}, size = SPRITE_COUNT * u32(vertices_byte_size)},
 	)
 
 	//upload the vertex data to GPU
 	transfer_buffer := sdl.CreateGPUTransferBuffer(
 		gpu_device,
-		{usage = .UPLOAD, size = u32(vertices_byte_size + indices_byte_size)},
+		{usage = .UPLOAD, size = SPRITE_COUNT * u32(vertices_byte_size + indices_byte_size)},
 	)
+
 	transfer_mem := cast([^]byte)sdl.MapGPUTransferBuffer(gpu_device, transfer_buffer, false)
 	mem.copy(transfer_mem, raw_data(vertices), vertices_byte_size)
 	mem.copy(transfer_mem[vertices_byte_size:], raw_data(indices), indices_byte_size)
@@ -300,7 +336,7 @@ main :: proc() {
 	sdl.UploadToGPUBuffer(
 		copy_pass,
 		{transfer_buffer = transfer_buffer},
-		{buffer = vertex_buffer, size = u32(vertices_byte_size)},
+		{buffer = sprite_data_buffer, size = u32(vertices_byte_size)},
 		false,
 	)
 
@@ -349,11 +385,11 @@ main :: proc() {
 
 	vertex_attributes := []sdl.GPUVertexAttribute {
 		//POSITION_IN
-		{location = 0, format = .FLOAT3, offset = u32(offset_of(VertexData, position))},
+		{location = 0, format = .FLOAT3, offset = u32(offset_of(SpriteData, position))},
 		//COLOR_IN
-		{location = 1, format = .FLOAT4, offset = u32(offset_of(VertexData, color))},
+		{location = 1, format = .FLOAT4, offset = u32(offset_of(SpriteData, color))},
 		//UV_IN
-		{location = 2, format = .FLOAT2, offset = u32(offset_of(VertexData, uv))},
+		{location = 2, format = .FLOAT2, offset = u32(offset_of(SpriteData, uv))},
 	}
 
 	pipeline_create_info := sdl.GPUGraphicsPipelineCreateInfo {
@@ -364,7 +400,7 @@ main :: proc() {
 			num_vertex_buffers = 1,
 			vertex_buffer_descriptions = &(sdl.GPUVertexBufferDescription {
 					slot = 0,
-					pitch = size_of(VertexData),
+					pitch = size_of(SpriteData),
 				}),
 			num_vertex_attributes = u32(len(vertex_attributes)),
 			vertex_attributes = raw_data(vertex_attributes),
@@ -446,7 +482,7 @@ main :: proc() {
 			gpu_device,
 			window,
 			pipeline,
-			vertex_buffer,
+			sprite_data_buffer,
 			index_buffer,
 			gpu_texture,
 			gpu_sampler,
@@ -526,7 +562,7 @@ render :: proc(
 	gpu_device: ^sdl.GPUDevice,
 	window: ^sdl.Window,
 	pipeline: ^sdl.GPUGraphicsPipeline,
-	vertex_bufffer: ^sdl.GPUBuffer,
+	sprite_data_buffer: ^sdl.GPUBuffer,
 	index_buffer: ^sdl.GPUBuffer,
 	gpu_texture: ^sdl.GPUTexture,
 	gpu_sampler: ^sdl.GPUSampler,
@@ -586,7 +622,7 @@ render :: proc(
 	}
 
 	if (swapchain_texture != nil) {
-		CLEAR_COLOR: sdl.FColor : {0, 0.0, 0.1, 1}
+		CLEAR_COLOR: sdl.FColor : COLOR_BLACK
 		//begin the render pass 
 		color_target_info := sdl.GPUColorTargetInfo {
 			texture     = swapchain_texture,
@@ -602,7 +638,7 @@ render :: proc(
 		sdl.BindGPUVertexBuffers(
 			render_pass,
 			0,
-			&(sdl.GPUBufferBinding{buffer = vertex_bufffer, offset = 0}),
+			&(sdl.GPUBufferBinding{buffer = sprite_data_buffer, offset = 0}),
 			1, //number of vertex buffers
 		)
 
@@ -613,6 +649,15 @@ render :: proc(
 			texture = gpu_texture,
 			sampler = gpu_sampler,
 		}
+
+		//for each sprite add data
+		i := 2
+		for i < SPRITE_COUNT {
+
+
+			i += 1
+		}
+
 		sdl.BindGPUFragmentSamplers(render_pass, 0, &texture_binding, 1)
 		sdl.DrawGPUIndexedPrimitives(
 			render_pass = render_pass,
