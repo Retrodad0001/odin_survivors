@@ -219,6 +219,9 @@ main :: proc() {
 	vertices: [SPRITE_COUNT * 4]SpriteData = {}
 	indices: [SPRITE_COUNT * 6]u32 = {}
 	//for each sprite add data
+
+	//TODO add test that shows this is working
+
 	i: u32 = 0
 	vertex_count: u32 = 0
 	indices_count: u32 = 0
@@ -240,12 +243,12 @@ main :: proc() {
 		vertices[vertex_count + 3].color = COLOR_WHITE
 		vertices[vertex_count + 3].uv = {1, 1}
 
-		indices[indices_count + 0] = indices_count + 0
-		indices[indices_count + 1] = indices_count + 1
-		indices[indices_count + 2] = indices_count + 2
-		indices[indices_count + 3] = indices_count + 2
-		indices[indices_count + 4] = indices_count + 1
-		indices[indices_count + 5] = indices_count + 3
+		indices[indices_count] = 0
+		indices[indices_count + 1] = 1
+		indices[indices_count + 2] = 2
+		indices[indices_count + 3] = 2
+		indices[indices_count + 4] = 1
+		indices[indices_count + 5] = 3
 
 		i += 1
 		vertex_count += 4
