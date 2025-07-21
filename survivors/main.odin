@@ -216,67 +216,43 @@ main :: proc() {
 
 
 	//TODO set max sprite count instead of dynamic
-	//vertices: []SpriteData = {}
-
+	vertices: [SPRITE_COUNT * 4]SpriteData = {}
+	indices: [SPRITE_COUNT * 6]u32 = {}
 	//for each sprite add data
-	i := 2
+	i: u32 = 0
+	vertex_count: u32 = 0
+	indices_count: u32 = 0
 	for i < SPRITE_COUNT {
-		
+
+		vertices[vertex_count].position = {-1, 1, 0}
+		vertices[vertex_count].color = COLOR_WHITE
+		vertices[vertex_count].uv = {0, 0}
+
+		vertices[vertex_count + 1].position = {1, 1, 0}
+		vertices[vertex_count + 1].color = COLOR_WHITE
+		vertices[vertex_count + 1].uv = {1, 0}
+
+		vertices[vertex_count + 2].position = {-1, -1, 0}
+		vertices[vertex_count + 2].color = COLOR_WHITE
+		vertices[vertex_count + 2].uv = {0, 1}
+
+		vertices[vertex_count + 3].position = {1, -1, 0}
+		vertices[vertex_count + 3].color = COLOR_WHITE
+		vertices[vertex_count + 3].uv = {1, 1}
+
+		indices[indices_count + 0] = indices_count + 0
+		indices[indices_count + 1] = indices_count + 1
+		indices[indices_count + 2] = indices_count + 2
+		indices[indices_count + 3] = indices_count + 2
+		indices[indices_count + 4] = indices_count + 1
+		indices[indices_count + 5] = indices_count + 3
 
 		i += 1
-	}
-
-		// vertices[0].position = {-1, 1, 0}
-		// vertices[0].color = COLOR_WHITE
-		// vertices[0].uv = {0, 0}
-
-		// vertices[1].position = {1, 1, 0}
-		// vertices[1].color = COLOR_WHITE
-		// vertices[1].uv = {1, 0}
-
-		// vertices[2].position = {-1, -1, 0}
-		// vertices[2].color = COLOR_WHITE
-		// vertices[2].uv = {0, 1}
-
-		// vertices[3].position = {1, -1, 0}
-		// vertices[3].color = COLOR_WHITE
-		// vertices[3].uv = {1, 1}
-
-	// //setup vertex attributes and vertex buffer for the pipeline
-	vertices: []SpriteData = {
-
-		//QUAD #1
-		{position = {-1, 1, 0}, color = COLOR_WHITE, uv = {0, 0}}, //TOP LEFT
-		{position = {1, 1, 0}, color = COLOR_WHITE, uv = {1, 0}}, //TOP RIGHT
-		{position = {-1, -1, 0}, color = COLOR_WHITE, uv = {0, 1}}, //BOTTOM LEFT
-		{position = {1, -1, 0}, color = COLOR_WHITE, uv = {1, 1}}, //BOTTOM RIGHT
-
-		//QUAD #2
-		{position = {-1, 1, 0}, color = COLOR_WHITE, uv = {0, 0}}, //TOP LEFT
-		{position = {1, 1, 0}, color = COLOR_WHITE, uv = {1, 0}}, //TOP RIGHT
-		{position = {-1, -1, 0}, color = COLOR_WHITE, uv = {0, 1}}, //BOTTOM LEFT
-		{position = {1, -1, 0}, color = COLOR_WHITE, uv = {1, 1}}, //BOTTOM RIGHT
+		vertex_count += 4
+		indices_count += 6
 	}
 
 	vertices_byte_size := len(vertices) * size_of(vertices[0])
-
-	indices := []u32 {
-
-		//0 tm 4
-		0,
-		1,
-		2, //first triangle 
-		2,
-		1,
-		3, //second triangle
-		0 + 4,
-		1 + 4,
-		2 + 4, //first triangle 
-		2 + 4,
-		1 + 4,
-		3 + 4, //second triangle
-	}
-
 	indices_byte_size := len(indices) * size_of(indices[0])
 
 	//create the vertex buffer
@@ -298,8 +274,8 @@ main :: proc() {
 	)
 
 	transfer_mem := cast([^]byte)sdl.MapGPUTransferBuffer(gpu_device, transfer_buffer, false)
-	mem.copy(transfer_mem, raw_data(vertices), vertices_byte_size)
-	mem.copy(transfer_mem[vertices_byte_size:], raw_data(indices), indices_byte_size)
+	mem.copy(transfer_mem, raw_data(&vertices), vertices_byte_size)
+	mem.copy(transfer_mem[vertices_byte_size:], raw_data(&indices), indices_byte_size)
 	sdl.UnmapGPUTransferBuffer(gpu_device, transfer_buffer)
 
 
