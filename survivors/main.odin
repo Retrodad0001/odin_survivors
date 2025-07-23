@@ -10,7 +10,7 @@ import stbi "vendor:stb/image"
 shader_code_fraq_text :: #load("..//fragment.spirv")
 shader_code_vert_text :: #load("..//vertex.spirv")
 
-SPRITE_COUNT :: 2
+SPRITE_COUNT :: 1
 COLOR_WHITE :: sdl.FColor{1, 1, 1, 1}
 COLOR_OTHER :: sdl.FColor{0, 1, 1, 1}
 COLOR_BLACK :: sdl.FColor{0, 0, 0, 0}
@@ -222,24 +222,48 @@ main :: proc() {
 
 	//TODO add test that shows this is working
 
+
+	rect :: struct {
+		x, y: f32,
+		w, h: f32,
+	}
+
+	//TODO inlining?
+	draw_sprite :: proc(batch: []SpriteData, destination: rect) {
+
+		if (ODIN_DEBUG) {
+			assert(destination.x >= 0)
+			assert(destination.y >= 0)
+			assert(destination.w > 0)
+			assert(destination.h > 0)
+		}
+
+
+	}
+
+
 	i: u32 = 0
 	vertex_count: u32 = 0
 	indices_count: u32 = 0
 	for i < SPRITE_COUNT {
 
-		vertices[vertex_count].position = {-50, 50, 0}
+		//TOP LEFT QUAD 
+		vertices[vertex_count].position = {0, 0, 0}
 		vertices[vertex_count].color = COLOR_WHITE
 		vertices[vertex_count].uv = {0, 0}
 
-		vertices[vertex_count + 1].position = {50, 50, 0}
+		//TOP RIGHT QUAD
+		vertices[vertex_count + 1].position = {50, 0, 0}
 		vertices[vertex_count + 1].color = COLOR_WHITE
 		vertices[vertex_count + 1].uv = {1, 0}
 
-		vertices[vertex_count + 2].position = {-50, -50, 0}
+		//BOTTOM LEFT QUAD
+		vertices[vertex_count + 2].position = {0, 50, 0}
 		vertices[vertex_count + 2].color = COLOR_WHITE
 		vertices[vertex_count + 2].uv = {0, 1}
 
-		vertices[vertex_count + 3].position = {50, -50, 0}
+		//BOTTOM R
+		vertices[vertex_count + 3].position = {50, 50, 0}
 		vertices[vertex_count + 3].color = COLOR_WHITE
 		vertices[vertex_count + 3].uv = {1, 1}
 
@@ -427,7 +451,7 @@ main :: proc() {
 	orthographic_projection: linalg.Matrix4x4f32 = linalg.matrix_ortho3d_f32(
 		left = 0,
 		right = 1024,
-		bottom = -768,
+		bottom = 768,
 		top = 0,
 		near = -1,
 		far = 1,
