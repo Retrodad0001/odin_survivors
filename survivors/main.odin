@@ -125,14 +125,14 @@ main :: proc() {
 	defer sdl.Quit()
 
 	//create window
-	INIT_WINDOWS_WIDTH :: 1920 //TODO add issue detect unused constants in strict mode
-	INIT_WINDOWS_HEIGHT :: 1080
+	INIT_WINDOWS_WIDTH :: 1024 //TODO add issue detect unused constants in strict mode
+	INIT_WINDOWS_HEIGHT :: 768
 	window_flags: sdl.WindowFlags
 	window_flags += {.RESIZABLE}
 	window: ^sdl.Window = sdl.CreateWindow(
 		title = "ODIN SURVIVORS",
-		w = 1920,
-		h = 1080,
+		w = INIT_WINDOWS_WIDTH,
+		h = INIT_WINDOWS_HEIGHT,
 		flags = window_flags,
 	)
 
@@ -227,19 +227,19 @@ main :: proc() {
 	indices_count: u32 = 0
 	for i < SPRITE_COUNT {
 
-		vertices[vertex_count].position = {-1, 1, 0}
+		vertices[vertex_count].position = {-50, 50, 0}
 		vertices[vertex_count].color = COLOR_WHITE
 		vertices[vertex_count].uv = {0, 0}
 
-		vertices[vertex_count + 1].position = {1, 1, 0}
+		vertices[vertex_count + 1].position = {50, 50, 0}
 		vertices[vertex_count + 1].color = COLOR_WHITE
 		vertices[vertex_count + 1].uv = {1, 0}
 
-		vertices[vertex_count + 2].position = {-1, -1, 0}
+		vertices[vertex_count + 2].position = {-50, -50, 0}
 		vertices[vertex_count + 2].color = COLOR_WHITE
 		vertices[vertex_count + 2].uv = {0, 1}
 
-		vertices[vertex_count + 3].position = {1, -1, 0}
+		vertices[vertex_count + 3].position = {50, -50, 0}
 		vertices[vertex_count + 3].color = COLOR_WHITE
 		vertices[vertex_count + 3].uv = {1, 1}
 
@@ -424,12 +424,11 @@ main :: proc() {
 		return
 	}
 
-	aspect_ratio: f32 = f32(window_size.x) / f32(window_size.y)
 	orthographic_projection: linalg.Matrix4x4f32 = linalg.matrix_ortho3d_f32(
-		left = -2.0 * aspect_ratio,
-		right = 2.0 * aspect_ratio,
-		bottom = -2.0,
-		top = 2.0,
+		left = 0,
+		right = 1024,
+		bottom = -768,
+		top = 0,
 		near = -1,
 		far = 1,
 	)

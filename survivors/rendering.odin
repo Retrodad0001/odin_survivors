@@ -30,8 +30,8 @@ camera_init :: proc() -> Camera {
 	camera: Camera = Camera {
 		x          = 0,
 		y          = 0,
-		zoom       = 1.0,
-		max_zoom   = 10.0,
+		zoom       = 5.0,
+		max_zoom   = 100.0,
 		zoom_speed = 4.0,
 		speed      = 2.0,
 	}
