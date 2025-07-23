@@ -67,7 +67,7 @@ Rect :: struct {
 }
 
 
-draw_sprite :: proc(vertices: ^[dynamic]VertexData, indices: ^[dynamic]u32, destination: Rect) {
+draw_sprite :: proc(vertices: []VertexData, indices: []u32, destination: Rect, location: u32) {
 
 	if (ODIN_DEBUG) {
 		assert(destination.world_pos_x >= 0)
@@ -76,41 +76,32 @@ draw_sprite :: proc(vertices: ^[dynamic]VertexData, indices: ^[dynamic]u32, dest
 		assert(destination.height > 0)
 	}
 
+	vertex_top_left: ^VertexData = &vertices[location]
+	vertex_top_left.position = {0, 0, 0}
+	vertex_top_left.color = COLOR_WHITE
+	vertex_top_left.uv = {0, 0}
 
-	vertex_top_left: VertexData = {
-		position = {0, 0, 0},
-		color    = COLOR_WHITE,
-		uv       = {0, 0},
-	}
-	append(vertices, vertex_top_left)
+	vertex_top_right: ^VertexData = &vertices[location + 1]
+	vertex_top_right.position = {50, 0, 0}
+	vertex_top_right.color = COLOR_WHITE
+	vertex_top_right.uv = {1, 0}
 
-	vertex_top_right: VertexData = {
-		position = {50, 0, 0},
-		color    = COLOR_WHITE,
-		uv       = {1, 0},
-	}
-	append(vertices, vertex_top_right)
+	vertex_bottom_left: ^VertexData = &vertices[location + 2]
+	vertex_bottom_left.position = {0, 50, 0}
+	vertex_bottom_left.color = COLOR_WHITE
+	vertex_bottom_left.uv = {0, 1}
 
-	vertex_bottom_left: VertexData = {
-		position = {0, 50, 0},
-		color    = COLOR_WHITE,
-		uv       = {0, 1},
-	}
-	append(vertices, vertex_bottom_left)
+	vertex_bottom_right: ^VertexData = &vertices[location + 3]
+	vertex_bottom_right.position = {50, 50, 0}
+	vertex_bottom_right.color = COLOR_WHITE
+	vertex_bottom_right.uv = {1, 1}
 
-	vertex_bottom_right: VertexData = {
-		position = {50, 50, 0},
-		color    = COLOR_WHITE,
-		uv       = {1, 1},
-	}
-	append(vertices, vertex_bottom_right)
-
-	append(indices, 0)
-	append(indices, 1)
-	append(indices, 2)
-	append(indices, 2)
-	append(indices, 1)
-	append(indices, 3)
+	indices[location] = 0
+	indices[location + 1] = 1
+	indices[location + 2] = 2
+	indices[location + 3] = 2
+	indices[location + 4] = 1
+	indices[location + 5] = 3
 }
 
 main :: proc() {
@@ -269,13 +260,18 @@ main :: proc() {
 	log.debug("ODIN SURVIVORS | end Loading shaders")
 
 	//TODO should be 4 and other 6?
-	vertices := make([dynamic]VertexData, 0, 0) //TODO howto use upfront capacity 
-	indices := make([dynamic]u32, 0, 0)
+
+
+	vertices_count := SPRITE_COUNT * 4
+	vertices := make([dynamic]VertexData, len = vertices_count, cap = vertices_count) //TODO howto use upfront capacity 
+
+	indices_count := SPRITE_COUNT * 6
+	indices := make([dynamic]u32, indices_count, indices_count)
 
 	defer delete(vertices)
 	defer delete(indices)
 
-	draw_sprite(&vertices, &indices, {0,0,16,16})
+	draw_sprite(vertices[:], indices[:], {0, 0, 16, 16}, location = 0)
 
 	vertices_byte_size := len(vertices) * size_of(vertices[0])
 	indices_byte_size := len(indices) * size_of(indices[0])
