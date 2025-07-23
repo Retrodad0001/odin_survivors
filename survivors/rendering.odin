@@ -8,9 +8,9 @@ Vec3 :: [3]f32
 
 
 @(private)
-Vertex :: struct {
-	position: Vec3, //position of the vertex
-	color:    sdl.FColor, //color of the vertex
+VertexData :: struct {
+	position: Vec3, 
+	color:    sdl.FColor, 
 	uv:       [2]f32,
 }
 
@@ -68,4 +68,3 @@ load_shader :: proc(
 
 	return sdl.CreateGPUShader(gpu_device, shader_create_info)
 }
-//TODO feature request when use stricty detect unused structs amd unions when marked with minimal @private tag (not high priority)

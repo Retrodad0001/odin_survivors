@@ -16,5 +16,6 @@
         "UNIFORMBUFFERS",
         "UNORM",
         "xcopy"
-    ]
+    ],
+    "todo-tree.tree.scanMode": "workspace only"
 }

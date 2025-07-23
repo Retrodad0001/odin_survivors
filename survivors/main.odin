@@ -18,16 +18,17 @@ COLOR_BLACK :: sdl.FColor{0, 0, 0, 0}
 
 //TODO draw only idle soldier
 
-//TODO RemedyBG
-//TODO draw 10 enemies
+//TODO draw 10 soldiers
 
-//TODO add batch rendering and check if it works in draw debugger
+//TODO rotate all soldier random direction
 
-//TODO add debug info
+//TODO add debug info (pos entities, pos camera, camera zoom)
 
 //TODO add effect to only one enemy
 
-//TODO use culling techniques to minimize pixel writes
+//TODO RemedyBG
+
+//TODO only draw stuff within camera
 
 //TODO integrate perf profiler spalt
 
@@ -56,6 +57,60 @@ sdl_log :: proc "c" (
 		level = .Fatal
 	}
 	log.logf(level, "SDL {}: {}", category, message)
+}
+
+Rect :: struct {
+	world_pos_x: f32,
+	world_pos_y: f32,
+	width:       f32,
+	height:      f32,
+}
+
+
+draw_sprite :: proc(vertices: ^[dynamic]VertexData, indices: ^[dynamic]u32, destination: Rect) {
+
+	if (ODIN_DEBUG) {
+		assert(destination.world_pos_x >= 0)
+		assert(destination.world_pos_y >= 0)
+		assert(destination.width > 0)
+		assert(destination.height > 0)
+	}
+
+
+	vertex_top_left: VertexData = {
+		position = {0, 0, 0},
+		color    = COLOR_WHITE,
+		uv       = {0, 0},
+	}
+	append(vertices, vertex_top_left)
+
+	vertex_top_right: VertexData = {
+		position = {50, 0, 0},
+		color    = COLOR_WHITE,
+		uv       = {1, 0},
+	}
+	append(vertices, vertex_top_right)
+
+	vertex_bottom_left: VertexData = {
+		position = {0, 50, 0},
+		color    = COLOR_WHITE,
+		uv       = {0, 1},
+	}
+	append(vertices, vertex_bottom_left)
+
+	vertex_bottom_right: VertexData = {
+		position = {50, 50, 0},
+		color    = COLOR_WHITE,
+		uv       = {1, 1},
+	}
+	append(vertices, vertex_bottom_right)
+
+	append(indices, 0)
+	append(indices, 1)
+	append(indices, 2)
+	append(indices, 2)
+	append(indices, 1)
+	append(indices, 3)
 }
 
 main :: proc() {
@@ -175,7 +230,6 @@ main :: proc() {
 		return
 	}
 
-
 	//SHADER SETUP
 
 	log.debug("ODIN SURVIVORS | start Loading shaders")
@@ -214,106 +268,17 @@ main :: proc() {
 	sdl.ReleaseGPUShader(gpu_device, gpu_fragment_shader)
 	log.debug("ODIN SURVIVORS | end Loading shaders")
 
-
 	//TODO should be 4 and other 6?
-	vertices := make([dynamic]Vertex, 0, 0) //TODO howto use upfront capacity 
+	vertices := make([dynamic]VertexData, 0, 0) //TODO howto use upfront capacity 
 	indices := make([dynamic]u32, 0, 0)
-	
+
 	defer delete(vertices)
 	defer delete(indices)
 
-	vertex_top_left: Vertex = {
-		position = {0, 0, 0},
-		color    = COLOR_WHITE,
-		uv       = {0, 0},
-	}
-	append(&vertices, vertex_top_left)
-
-	vertex_top_right: Vertex = {
-		position = {50, 0, 0},
-		color    = COLOR_WHITE,
-		uv       = {1, 0},
-	}
-	append(&vertices, vertex_top_right)
-
-	vertex_bottom_left: Vertex = {
-		position = {0, 50, 0},
-		color    = COLOR_WHITE,
-		uv       = {0, 1},
-	}
-	append(&vertices, vertex_bottom_left)
-
-	vertex_bottom_right: Vertex = {
-		position = {50, 50, 0},
-		color    = COLOR_WHITE,
-		uv       = {1, 1},
-	}
-	append(&vertices, vertex_bottom_right)
-
-	append(&indices, 0)
-	append(&indices, 1)
-	append(&indices, 2)
-	append(&indices, 2)
-	append(&indices, 1)
-	append(&indices, 3)
+	draw_sprite(&vertices, &indices, {0,0,16,16})
 
 	vertices_byte_size := len(vertices) * size_of(vertices[0])
 	indices_byte_size := len(indices) * size_of(indices[0])
-
-	// //TOP LEFT QUAD 
-	// 	vertices[vertex_count].position = {0, 0, 0}
-	// 	vertices[vertex_count].color = COLOR_WHITE
-	// 	vertices[vertex_count].uv = {0, 0}
-
-	// 	//TOP RIGHT QUAD
-	// 	vertices[vertex_count + 1].position = {50, 0, 0}
-	// 	vertices[vertex_count + 1].color = COLOR_WHITE
-	// 	vertices[vertex_count + 1].uv = {1, 0}
-
-	// 	//BOTTOM LEFT QUAD
-	// 	vertices[vertex_count + 2].position = {0, 50, 0}
-	// 	vertices[vertex_count + 2].color = COLOR_WHITE
-	// 	vertices[vertex_count + 2].uv = {0, 1}
-
-	// 	//BOTTOM R
-	// 	vertices[vertex_count + 3].position = {50, 50, 0}
-	// 	vertices[vertex_count + 3].color = COLOR_WHITE
-	// 	vertices[vertex_count + 3].uv = {1, 1}
-
-	// 	indices[indices_count] = 0
-	// 	indices[indices_count + 1] = 1
-	// 	indices[indices_count + 2] = 2
-	// 	indices[indices_count + 3] = 2
-	// 	indices[indices_count + 4] = 1
-	// 	indices[indices_count + 5] = 3
-
-
-	// //for each sprite add data
-
-	// //TODO add test that shows this is working
-
-	// Sprite :: struct{
-	// 	world_x:f32,
-	// 	world_y:f32,
-	// }
-
-	// rect :: struct {
-	// 	x, y: f32,
-	// 	w, h: f32,
-	// }
-
-	// //TODO inlining?
-	// draw_sprite :: proc(batch: []Vertex, batch_position: u32, destination: rect) {
-
-	// 	if (ODIN_DEBUG) {
-	// 		assert(destination.x >= 0)
-	// 		assert(destination.y >= 0)
-	// 		assert(destination.w > 0)
-	// 		assert(destination.h > 0)
-	// 		assert(batch_position >= 0)
-	// 	}
-	// }
-
 
 	//create the vertex buffer
 	index_buffer := sdl.CreateGPUBuffer(
@@ -421,11 +386,11 @@ main :: proc() {
 
 	vertex_attributes := []sdl.GPUVertexAttribute {
 		//POSITION_IN
-		{location = 0, format = .FLOAT3, offset = u32(offset_of(Vertex, position))},
+		{location = 0, format = .FLOAT3, offset = u32(offset_of(VertexData, position))},
 		//COLOR_IN
-		{location = 1, format = .FLOAT4, offset = u32(offset_of(Vertex, color))},
+		{location = 1, format = .FLOAT4, offset = u32(offset_of(VertexData, color))},
 		//UV_IN
-		{location = 2, format = .FLOAT2, offset = u32(offset_of(Vertex, uv))},
+		{location = 2, format = .FLOAT2, offset = u32(offset_of(VertexData, uv))},
 	}
 
 	pipeline_create_info := sdl.GPUGraphicsPipelineCreateInfo {
@@ -436,7 +401,7 @@ main :: proc() {
 			num_vertex_buffers = 1,
 			vertex_buffer_descriptions = &(sdl.GPUVertexBufferDescription {
 					slot = 0,
-					pitch = size_of(Vertex),
+					pitch = size_of(VertexData),
 				}),
 			num_vertex_attributes = u32(len(vertex_attributes)),
 			vertex_attributes = raw_data(vertex_attributes),
@@ -603,10 +568,6 @@ render :: proc(
 	gpu_sampler: ^sdl.GPUSampler,
 ) -> bool {
 
-	//TODO add a command buffer to the gpu device
-	//TODO add a render pass to the command buffer
-	//TODO add a swapchain texture to the render pass
-
 	//create the command buffer
 	if (gpu_device == nil) {
 		log.error("ODIN SURVIVORS | GPU device is nil")
@@ -644,8 +605,8 @@ render :: proc(
 
 	// Create view matrix with camera position and zoom
 	view_camera_matrix :=
-		linalg.matrix4_scale_f32({camera.zoom, camera.zoom, 1}) *
-		linalg.matrix4_translate_f32({-camera.x, -camera.y, 0})
+		linalg.matrix4_scale_f32({camera.zoom, camera.zoom, 2}) *
+		linalg.matrix4_translate_f32({-camera.x, -camera.y, 1})
 
 	ubo := UBO {
 		mvp = orthographic_projection * view_camera_matrix,
