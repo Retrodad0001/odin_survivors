@@ -8,7 +8,7 @@ Vec3 :: [3]f32
 
 
 @(private)
-SpriteData :: struct {
+Vertex :: struct {
 	position: Vec3, //position of the vertex
 	color:    sdl.FColor, //color of the vertex
 	uv:       [2]f32,

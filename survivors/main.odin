@@ -215,72 +215,105 @@ main :: proc() {
 	log.debug("ODIN SURVIVORS | end Loading shaders")
 
 
-	//TODO set max sprite count instead of dynamic
-	vertices: [SPRITE_COUNT * 4]SpriteData = {}
-	indices: [SPRITE_COUNT * 6]u32 = {}
-	//for each sprite add data
+	//TODO should be 4 and other 6?
+	vertices := make([dynamic]Vertex, 0, 0) //TODO howto use upfront capacity 
+	indices := make([dynamic]u32, 0, 0)
+	
+	defer delete(vertices)
+	defer delete(indices)
 
-	//TODO add test that shows this is working
-
-
-	rect :: struct {
-		x, y: f32,
-		w, h: f32,
+	vertex_top_left: Vertex = {
+		position = {0, 0, 0},
+		color    = COLOR_WHITE,
+		uv       = {0, 0},
 	}
+	append(&vertices, vertex_top_left)
 
-	//TODO inlining?
-	draw_sprite :: proc(batch: []SpriteData, destination: rect) {
-
-		if (ODIN_DEBUG) {
-			assert(destination.x >= 0)
-			assert(destination.y >= 0)
-			assert(destination.w > 0)
-			assert(destination.h > 0)
-		}
-
-
+	vertex_top_right: Vertex = {
+		position = {50, 0, 0},
+		color    = COLOR_WHITE,
+		uv       = {1, 0},
 	}
+	append(&vertices, vertex_top_right)
 
-
-	i: u32 = 0
-	vertex_count: u32 = 0
-	indices_count: u32 = 0
-	for i < SPRITE_COUNT {
-
-		//TOP LEFT QUAD 
-		vertices[vertex_count].position = {0, 0, 0}
-		vertices[vertex_count].color = COLOR_WHITE
-		vertices[vertex_count].uv = {0, 0}
-
-		//TOP RIGHT QUAD
-		vertices[vertex_count + 1].position = {50, 0, 0}
-		vertices[vertex_count + 1].color = COLOR_WHITE
-		vertices[vertex_count + 1].uv = {1, 0}
-
-		//BOTTOM LEFT QUAD
-		vertices[vertex_count + 2].position = {0, 50, 0}
-		vertices[vertex_count + 2].color = COLOR_WHITE
-		vertices[vertex_count + 2].uv = {0, 1}
-
-		//BOTTOM R
-		vertices[vertex_count + 3].position = {50, 50, 0}
-		vertices[vertex_count + 3].color = COLOR_WHITE
-		vertices[vertex_count + 3].uv = {1, 1}
-
-		indices[indices_count] = 0
-		indices[indices_count + 1] = 1
-		indices[indices_count + 2] = 2
-		indices[indices_count + 3] = 2
-		indices[indices_count + 4] = 1
-		indices[indices_count + 5] = 3
-
-		i += 1
-		vertex_count += 4
-		indices_count += 6
+	vertex_bottom_left: Vertex = {
+		position = {0, 50, 0},
+		color    = COLOR_WHITE,
+		uv       = {0, 1},
 	}
+	append(&vertices, vertex_bottom_left)
+
+	vertex_bottom_right: Vertex = {
+		position = {50, 50, 0},
+		color    = COLOR_WHITE,
+		uv       = {1, 1},
+	}
+	append(&vertices, vertex_bottom_right)
+
+	append(&indices, 0)
+	append(&indices, 1)
+	append(&indices, 2)
+	append(&indices, 2)
+	append(&indices, 1)
+	append(&indices, 3)
 
 	vertices_byte_size := len(vertices) * size_of(vertices[0])
 	indices_byte_size := len(indices) * size_of(indices[0])
+
+	// //TOP LEFT QUAD 
+	// 	vertices[vertex_count].position = {0, 0, 0}
+	// 	vertices[vertex_count].color = COLOR_WHITE
+	// 	vertices[vertex_count].uv = {0, 0}
+
+	// 	//TOP RIGHT QUAD
+	// 	vertices[vertex_count + 1].position = {50, 0, 0}
+	// 	vertices[vertex_count + 1].color = COLOR_WHITE
+	// 	vertices[vertex_count + 1].uv = {1, 0}
+
+	// 	//BOTTOM LEFT QUAD
+	// 	vertices[vertex_count + 2].position = {0, 50, 0}
+	// 	vertices[vertex_count + 2].color = COLOR_WHITE
+	// 	vertices[vertex_count + 2].uv = {0, 1}
+
+	// 	//BOTTOM R
+	// 	vertices[vertex_count + 3].position = {50, 50, 0}
+	// 	vertices[vertex_count + 3].color = COLOR_WHITE
+	// 	vertices[vertex_count + 3].uv = {1, 1}
+
+	// 	indices[indices_count] = 0
+	// 	indices[indices_count + 1] = 1
+	// 	indices[indices_count + 2] = 2
+	// 	indices[indices_count + 3] = 2
+	// 	indices[indices_count + 4] = 1
+	// 	indices[indices_count + 5] = 3
+
+
+	// //for each sprite add data
+
+	// //TODO add test that shows this is working
+
+	// Sprite :: struct{
+	// 	world_x:f32,
+	// 	world_y:f32,
+	// }
+
+	// rect :: struct {
+	// 	x, y: f32,
+	// 	w, h: f32,
+	// }
+
+	// //TODO inlining?
+	// draw_sprite :: proc(batch: []Vertex, batch_position: u32, destination: rect) {
+
+	// 	if (ODIN_DEBUG) {
+	// 		assert(destination.x >= 0)
+	// 		assert(destination.y >= 0)
+	// 		assert(destination.w > 0)
+	// 		assert(destination.h > 0)
+	// 		assert(batch_position >= 0)
+	// 	}
+	// }
+
 
 	//create the vertex buffer
 	index_buffer := sdl.CreateGPUBuffer(
@@ -301,8 +334,8 @@ main :: proc() {
 	)
 
 	transfer_mem := cast([^]byte)sdl.MapGPUTransferBuffer(gpu_device, transfer_buffer, false)
-	mem.copy(transfer_mem, raw_data(&vertices), vertices_byte_size)
-	mem.copy(transfer_mem[vertices_byte_size:], raw_data(&indices), indices_byte_size)
+	mem.copy(transfer_mem, raw_data(vertices), vertices_byte_size)
+	mem.copy(transfer_mem[vertices_byte_size:], raw_data(indices), indices_byte_size)
 	sdl.UnmapGPUTransferBuffer(gpu_device, transfer_buffer)
 
 
@@ -388,11 +421,11 @@ main :: proc() {
 
 	vertex_attributes := []sdl.GPUVertexAttribute {
 		//POSITION_IN
-		{location = 0, format = .FLOAT3, offset = u32(offset_of(SpriteData, position))},
+		{location = 0, format = .FLOAT3, offset = u32(offset_of(Vertex, position))},
 		//COLOR_IN
-		{location = 1, format = .FLOAT4, offset = u32(offset_of(SpriteData, color))},
+		{location = 1, format = .FLOAT4, offset = u32(offset_of(Vertex, color))},
 		//UV_IN
-		{location = 2, format = .FLOAT2, offset = u32(offset_of(SpriteData, uv))},
+		{location = 2, format = .FLOAT2, offset = u32(offset_of(Vertex, uv))},
 	}
 
 	pipeline_create_info := sdl.GPUGraphicsPipelineCreateInfo {
@@ -403,7 +436,7 @@ main :: proc() {
 			num_vertex_buffers = 1,
 			vertex_buffer_descriptions = &(sdl.GPUVertexBufferDescription {
 					slot = 0,
-					pitch = size_of(SpriteData),
+					pitch = size_of(Vertex),
 				}),
 			num_vertex_attributes = u32(len(vertex_attributes)),
 			vertex_attributes = raw_data(vertex_attributes),
@@ -606,11 +639,6 @@ render :: proc(
 		return true
 	}
 
-	rotation_sprite :: 0 //FOR NOW, we don't use per sprite/entity rotation
-	model_view_matrix :=
-		linalg.matrix4_translate_f32({0, 0, -1}) *
-		linalg.matrix4_rotate_f32(rotation_sprite, {0, 1, 0})
-
 	// set max and min zoom limits
 	camera.zoom = clamp(camera.zoom, 0.1, camera.max_zoom)
 
@@ -620,7 +648,7 @@ render :: proc(
 		linalg.matrix4_translate_f32({-camera.x, -camera.y, 0})
 
 	ubo := UBO {
-		mvp = orthographic_projection * view_camera_matrix * model_view_matrix,
+		mvp = orthographic_projection * view_camera_matrix,
 	}
 
 	if (swapchain_texture != nil) {
