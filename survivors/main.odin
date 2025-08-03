@@ -10,15 +10,15 @@ import stbi "vendor:stb/image"
 shader_code_fraq_text :: #load("..//fragment.spirv")
 shader_code_vert_text :: #load("..//vertex.spirv")
 
-SPRITE_COUNT :: 1
+SPRITE_COUNT :: 2
 COLOR_WHITE :: sdl.FColor{1, 1, 1, 1}
 COLOR_OTHER :: sdl.FColor{0, 1, 1, 1}
 COLOR_BLACK :: sdl.FColor{0, 0, 0, 0}
 
 
-//TODO draw only idle soldier
+//TODO draw 2 soldiers
 
-//TODO draw 10 soldiers
+//TODO draw only idle soldier
 
 //TODO rotate all soldier random direction
 
@@ -67,7 +67,7 @@ Rect :: struct {
 }
 
 
-draw_sprite :: proc(vertices: []VertexData, indices: []u32, destination: Rect, location: u32) {
+draw_sprite :: proc(vertices: []VertexData, indices: []u32, destination: Rect, sprite_index: u32) {
 
 	if (ODIN_DEBUG) {
 		assert(destination.world_pos_x >= 0)
@@ -76,32 +76,96 @@ draw_sprite :: proc(vertices: []VertexData, indices: []u32, destination: Rect, l
 		assert(destination.height > 0)
 	}
 
-	vertex_top_left: ^VertexData = &vertices[location]
-	vertex_top_left.position = {0, 0, 0}
+	vertex_offset: u32 = 4 * sprite_index
+
+	vertex_top_left: ^VertexData = &vertices[vertex_offset]
+	vertex_top_left.position = {destination.world_pos_x, destination.world_pos_y, 0}
 	vertex_top_left.color = COLOR_WHITE
 	vertex_top_left.uv = {0, 0}
 
-	vertex_top_right: ^VertexData = &vertices[location + 1]
-	vertex_top_right.position = {50, 0, 0}
+	vertex_top_right: ^VertexData = &vertices[vertex_offset + 1]
+	vertex_top_right.position = {
+		destination.world_pos_x + destination.width,
+		destination.world_pos_y,
+		0,
+	}
 	vertex_top_right.color = COLOR_WHITE
 	vertex_top_right.uv = {1, 0}
 
-	vertex_bottom_left: ^VertexData = &vertices[location + 2]
-	vertex_bottom_left.position = {0, 50, 0}
+	vertex_bottom_left: ^VertexData = &vertices[vertex_offset + 2]
+	vertex_bottom_left.position = {
+		destination.world_pos_x,
+		destination.world_pos_y + destination.height,
+		0,
+	}
 	vertex_bottom_left.color = COLOR_WHITE
 	vertex_bottom_left.uv = {0, 1}
 
-	vertex_bottom_right: ^VertexData = &vertices[location + 3]
-	vertex_bottom_right.position = {50, 50, 0}
+	vertex_bottom_right: ^VertexData = &vertices[vertex_offset + 3]
+	vertex_bottom_right.position = {
+		destination.world_pos_x + destination.width,
+		destination.world_pos_y + destination.height,
+		0,
+	}
 	vertex_bottom_right.color = COLOR_WHITE
 	vertex_bottom_right.uv = {1, 1}
 
-	indices[location] = 0
-	indices[location + 1] = 1
-	indices[location + 2] = 2
-	indices[location + 3] = 2
-	indices[location + 4] = 1
-	indices[location + 5] = 3
+	indices_offset: u32 = 6 * sprite_index
+	indices[indices_offset + 0] = 0
+	indices[indices_offset + 1] = 1
+	indices[indices_offset + 2] = 2
+	indices[indices_offset + 3] = 2
+	indices[indices_offset + 4] = 1
+	indices[indices_offset + 5] = 3
+}
+
+draw_tile :: proc(vertices: []VertexData, indices: []u32, destination: Rect, tile_x: u32, tile_y: u32, sprite_index: u32) {
+    // Tilesheet constants
+    TILE_SIZE :: 16
+    TILE_SPACING :: 1
+    SHEET_TILES_X :: 12
+    SHEET_TILES_Y :: 11
+    SHEET_WIDTH :: (SHEET_TILES_X * TILE_SIZE) + ((SHEET_TILES_X - 1) * TILE_SPACING) // 203
+    SHEET_HEIGHT :: (SHEET_TILES_Y * TILE_SIZE) + ((SHEET_TILES_Y - 1) * TILE_SPACING) // 186
+    
+    // Calculate UV coordinates for the specific tile
+    tile_pixel_x := tile_x * (TILE_SIZE + TILE_SPACING)
+    tile_pixel_y := tile_y * (TILE_SIZE + TILE_SPACING)
+    
+    uv_left := f32(tile_pixel_x) / f32(SHEET_WIDTH)
+    uv_right := f32(tile_pixel_x + TILE_SIZE) / f32(SHEET_WIDTH)
+    uv_top := f32(tile_pixel_y) / f32(SHEET_HEIGHT)
+    uv_bottom := f32(tile_pixel_y + TILE_SIZE) / f32(SHEET_HEIGHT)
+    
+    vertex_offset: u32 = 4 * sprite_index
+    
+    vertex_top_left: ^VertexData = &vertices[vertex_offset]
+    vertex_top_left.position = {destination.world_pos_x, destination.world_pos_y, 0}
+    vertex_top_left.color = COLOR_WHITE
+    vertex_top_left.uv = {uv_left, uv_top}
+    
+    vertex_top_right: ^VertexData = &vertices[vertex_offset + 1]
+    vertex_top_right.position = {destination.world_pos_x + destination.width, destination.world_pos_y, 0}
+    vertex_top_right.color = COLOR_WHITE
+    vertex_top_right.uv = {uv_right, uv_top}
+    
+    vertex_bottom_left: ^VertexData = &vertices[vertex_offset + 2]
+    vertex_bottom_left.position = {destination.world_pos_x, destination.world_pos_y + destination.height, 0}
+    vertex_bottom_left.color = COLOR_WHITE
+    vertex_bottom_left.uv = {uv_left, uv_bottom}
+    
+    vertex_bottom_right: ^VertexData = &vertices[vertex_offset + 3]
+    vertex_bottom_right.position = {destination.world_pos_x + destination.width, destination.world_pos_y + destination.height, 0}
+    vertex_bottom_right.color = COLOR_WHITE
+    vertex_bottom_right.uv = {uv_right, uv_bottom}
+    
+    indices_offset: u32 = 6 * sprite_index
+    indices[indices_offset + 0] = vertex_offset + 0
+    indices[indices_offset + 1] = vertex_offset + 1
+    indices[indices_offset + 2] = vertex_offset + 2
+    indices[indices_offset + 3] = vertex_offset + 2
+    indices[indices_offset + 4] = vertex_offset + 1
+    indices[indices_offset + 5] = vertex_offset + 3
 }
 
 main :: proc() {
@@ -271,7 +335,8 @@ main :: proc() {
 	defer delete(vertices)
 	defer delete(indices)
 
-	draw_sprite(vertices[:], indices[:], {0, 0, 16, 16}, location = 0)
+	draw_tile(vertices[:], indices[:], {0, 0, 16, 16}, tile_x = 0, tile_y = 0, sprite_index = 0)
+	draw_tile(vertices[:], indices[:], {500, 800, 16, 16}, tile_x = 8, tile_y = 8, sprite_index = 1)
 
 	vertices_byte_size := len(vertices) * size_of(vertices[0])
 	indices_byte_size := len(indices) * size_of(indices[0])
