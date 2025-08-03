@@ -286,6 +286,8 @@ main :: proc() {
 	sdl.ReleaseGPUShader(gpu_device, gpu_fragment_shader)
 	log.debug("ODIN SURVIVORS | end Loading shaders")
 
+	gpu_texture := load_texture_and_upload_to_GPU(gpu_device)
+	defer sdl.ReleaseGPUTexture(gpu_device, gpu_texture)
 
 	vertices_count := SPRITE_COUNT * 4
 	vertices := make([dynamic]VertexData, len = vertices_count, cap = vertices_count) //TODO howto use upfront capacity 
@@ -296,7 +298,6 @@ main :: proc() {
 	defer delete(vertices)
 	defer delete(indices)
 
-
 	vertices_byte_size := len(vertices) * size_of(vertices[0])
 	indices_byte_size := len(indices) * size_of(indices[0])
 
@@ -305,12 +306,14 @@ main :: proc() {
 		gpu_device,
 		{usage = {.INDEX}, size = u32(indices_byte_size)},
 	)
+	defer sdl.ReleaseGPUBuffer(gpu_device,index_buffer)
 
 	//create the vertex buffer
 	sprite_data_buffer := sdl.CreateGPUBuffer(
 		gpu_device,
 		{usage = {.VERTEX}, size = SPRITE_COUNT * u32(vertices_byte_size)},
 	)
+	defer sdl.ReleaseGPUBuffer(gpu_device,sprite_data_buffer)
 
 	//upload the vertex data to GPU
 	transfer_buffer := sdl.CreateGPUTransferBuffer(
@@ -335,8 +338,7 @@ main :: proc() {
 	sdl.UnmapGPUTransferBuffer(gpu_device, transfer_buffer)
 
 
-	gpu_texture := load_texture_and_upload_to_GPU(gpu_device)
-
+	
 
 	copy_command_buffer := sdl.AcquireGPUCommandBuffer(gpu_device)
 	copy_pass := sdl.BeginGPUCopyPass(copy_command_buffer)
@@ -478,7 +480,8 @@ main :: proc() {
 		}
 
 		game_update(delta_time)
-		should_quit_game = render(
+
+		should_quit_game = render_stuff(
 			&camera,
 			orthographic_projection,
 			gpu_device,
@@ -558,7 +561,7 @@ game_update :: proc(delta_time: f32) {
 
 @(private)
 @(require_results)
-render :: proc(
+render_stuff :: proc(
 	camera: ^Camera,
 	orthographic_projection: linalg.Matrix4x4f32,
 	gpu_device: ^sdl.GPUDevice,
@@ -685,7 +688,6 @@ render :: proc(
 @(require_results)
 load_texture_and_upload_to_GPU :: proc(gpu_device: ^sdl.GPUDevice) -> ^sdl.GPUTexture {
 	copy_buffer := sdl.AcquireGPUCommandBuffer(gpu_device)
-
 	copy_pass := sdl.BeginGPUCopyPass(copy_buffer)
 
 	//LOAD ATLAS and upload it to GPU (once)
@@ -708,6 +710,7 @@ load_texture_and_upload_to_GPU :: proc(gpu_device: ^sdl.GPUDevice) -> ^sdl.GPUTe
 		gpu_device,
 		{usage = .UPLOAD, size = u32(pixels_byte_size)},
 	)
+	defer sdl.ReleaseGPUTransferBuffer(gpu_device, texture_transfer_buffer)
 
 	texture_transfer_mem := sdl.MapGPUTransferBuffer(gpu_device, texture_transfer_buffer, false)
 	mem.copy(texture_transfer_mem, pixels, int(pixels_byte_size))
@@ -720,8 +723,8 @@ load_texture_and_upload_to_GPU :: proc(gpu_device: ^sdl.GPUDevice) -> ^sdl.GPUTe
 	)
 
 	sdl.EndGPUCopyPass(copy_pass)
-	sdl.ReleaseGPUTransferBuffer(gpu_device, texture_transfer_buffer)
-
+	
+	
 	OK: bool = sdl.SubmitGPUCommandBuffer(copy_buffer)
 	if OK == false {
 		log.error(
