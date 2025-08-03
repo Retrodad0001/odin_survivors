@@ -16,10 +16,6 @@ COLOR_OTHER :: sdl.FColor{0, 1, 1, 1}
 COLOR_BLACK :: sdl.FColor{0, 0, 0, 0}
 
 
-//TODO draw 2 soldiers
-
-//TODO draw only idle soldier
-
 //TODO rotate all soldier random direction
 
 //TODO add debug info (pos entities, pos camera, camera zoom)
@@ -66,60 +62,7 @@ Rect :: struct {
 	height:      f32,
 }
 
-
-draw_sprite :: proc(vertices: []VertexData, indices: []u32, destination: Rect, sprite_index: u32) {
-
-	if (ODIN_DEBUG) {
-		assert(destination.world_pos_x >= 0)
-		assert(destination.world_pos_y >= 0)
-		assert(destination.width > 0)
-		assert(destination.height > 0)
-	}
-
-	vertex_offset: u32 = 4 * sprite_index
-
-	vertex_top_left: ^VertexData = &vertices[vertex_offset]
-	vertex_top_left.position = {destination.world_pos_x, destination.world_pos_y, 0}
-	vertex_top_left.color = COLOR_WHITE
-	vertex_top_left.uv = {0, 0}
-
-	vertex_top_right: ^VertexData = &vertices[vertex_offset + 1]
-	vertex_top_right.position = {
-		destination.world_pos_x + destination.width,
-		destination.world_pos_y,
-		0,
-	}
-	vertex_top_right.color = COLOR_WHITE
-	vertex_top_right.uv = {1, 0}
-
-	vertex_bottom_left: ^VertexData = &vertices[vertex_offset + 2]
-	vertex_bottom_left.position = {
-		destination.world_pos_x,
-		destination.world_pos_y + destination.height,
-		0,
-	}
-	vertex_bottom_left.color = COLOR_WHITE
-	vertex_bottom_left.uv = {0, 1}
-
-	vertex_bottom_right: ^VertexData = &vertices[vertex_offset + 3]
-	vertex_bottom_right.position = {
-		destination.world_pos_x + destination.width,
-		destination.world_pos_y + destination.height,
-		0,
-	}
-	vertex_bottom_right.color = COLOR_WHITE
-	vertex_bottom_right.uv = {1, 1}
-
-	indices_offset: u32 = 6 * sprite_index
-	indices[indices_offset + 0] = 0
-	indices[indices_offset + 1] = 1
-	indices[indices_offset + 2] = 2
-	indices[indices_offset + 3] = 2
-	indices[indices_offset + 4] = 1
-	indices[indices_offset + 5] = 3
-}
-
-draw_tile :: proc(vertices: []VertexData, indices: []u32, destination: Rect, tile_x: u32, tile_y: u32, sprite_index: u32) {
+draw_sprite :: proc(vertices: []VertexData, indices: []u32, destination: Rect, tile_x: u32, tile_y: u32, sprite_index: u32) {
     // Tilesheet constants
     TILE_SIZE :: 16
     TILE_SPACING :: 1
@@ -335,8 +278,8 @@ main :: proc() {
 	defer delete(vertices)
 	defer delete(indices)
 
-	draw_tile(vertices[:], indices[:], {0, 0, 16, 16}, tile_x = 0, tile_y = 0, sprite_index = 0)
-	draw_tile(vertices[:], indices[:], {500, 800, 16, 16}, tile_x = 8, tile_y = 8, sprite_index = 1)
+	draw_sprite(vertices[:], indices[:], {0, 0, 16, 16}, tile_x = 0, tile_y = 0, sprite_index = 0)
+	draw_sprite(vertices[:], indices[:], {50, 50, 16, 16}, tile_x = 8, tile_y = 8, sprite_index = 1)
 
 	vertices_byte_size := len(vertices) * size_of(vertices[0])
 	indices_byte_size := len(indices) * size_of(indices[0])
