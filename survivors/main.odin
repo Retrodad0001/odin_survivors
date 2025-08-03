@@ -15,8 +15,9 @@ COLOR_WHITE :: sdl.FColor{1, 1, 1, 1}
 COLOR_OTHER :: sdl.FColor{0, 1, 1, 1}
 COLOR_BLACK :: sdl.FColor{0, 0, 0, 0}
 
-
 //TODO rotate all soldier random direction
+//TODO draw sprite random every 4 seconds
+
 
 //TODO add debug info (pos entities, pos camera, camera zoom)
 
@@ -62,53 +63,72 @@ Rect :: struct {
 	height:      f32,
 }
 
-draw_sprite :: proc(vertices: []VertexData, indices: []u32, destination: Rect, tile_x: u32, tile_y: u32, sprite_index: u32) {
-    // Tilesheet constants
-    TILE_SIZE :: 16
-    TILE_SPACING :: 1
-    SHEET_TILES_X :: 12
-    SHEET_TILES_Y :: 11
-    SHEET_WIDTH :: (SHEET_TILES_X * TILE_SIZE) + ((SHEET_TILES_X - 1) * TILE_SPACING) // 203
-    SHEET_HEIGHT :: (SHEET_TILES_Y * TILE_SIZE) + ((SHEET_TILES_Y - 1) * TILE_SPACING) // 186
-    
-    // Calculate UV coordinates for the specific tile
-    tile_pixel_x := tile_x * (TILE_SIZE + TILE_SPACING)
-    tile_pixel_y := tile_y * (TILE_SIZE + TILE_SPACING)
-    
-    uv_left := f32(tile_pixel_x) / f32(SHEET_WIDTH)
-    uv_right := f32(tile_pixel_x + TILE_SIZE) / f32(SHEET_WIDTH)
-    uv_top := f32(tile_pixel_y) / f32(SHEET_HEIGHT)
-    uv_bottom := f32(tile_pixel_y + TILE_SIZE) / f32(SHEET_HEIGHT)
-    
-    vertex_offset: u32 = 4 * sprite_index
-    
-    vertex_top_left: ^VertexData = &vertices[vertex_offset]
-    vertex_top_left.position = {destination.world_pos_x, destination.world_pos_y, 0}
-    vertex_top_left.color = COLOR_WHITE
-    vertex_top_left.uv = {uv_left, uv_top}
-    
-    vertex_top_right: ^VertexData = &vertices[vertex_offset + 1]
-    vertex_top_right.position = {destination.world_pos_x + destination.width, destination.world_pos_y, 0}
-    vertex_top_right.color = COLOR_WHITE
-    vertex_top_right.uv = {uv_right, uv_top}
-    
-    vertex_bottom_left: ^VertexData = &vertices[vertex_offset + 2]
-    vertex_bottom_left.position = {destination.world_pos_x, destination.world_pos_y + destination.height, 0}
-    vertex_bottom_left.color = COLOR_WHITE
-    vertex_bottom_left.uv = {uv_left, uv_bottom}
-    
-    vertex_bottom_right: ^VertexData = &vertices[vertex_offset + 3]
-    vertex_bottom_right.position = {destination.world_pos_x + destination.width, destination.world_pos_y + destination.height, 0}
-    vertex_bottom_right.color = COLOR_WHITE
-    vertex_bottom_right.uv = {uv_right, uv_bottom}
-    
-    indices_offset: u32 = 6 * sprite_index
-    indices[indices_offset + 0] = vertex_offset + 0
-    indices[indices_offset + 1] = vertex_offset + 1
-    indices[indices_offset + 2] = vertex_offset + 2
-    indices[indices_offset + 3] = vertex_offset + 2
-    indices[indices_offset + 4] = vertex_offset + 1
-    indices[indices_offset + 5] = vertex_offset + 3
+draw_sprite :: proc(
+	vertices: []VertexData,
+	indices: []u32,
+	destination: Rect,
+	tile_x: u32,
+	tile_y: u32,
+	sprite_index: u32,
+) {
+	// Tilesheet constants
+	TILE_SIZE :: 16
+	TILE_SPACING :: 1
+	SHEET_TILES_X :: 12
+	SHEET_TILES_Y :: 11
+	SHEET_WIDTH :: (SHEET_TILES_X * TILE_SIZE) + ((SHEET_TILES_X - 1) * TILE_SPACING) // 203
+	SHEET_HEIGHT :: (SHEET_TILES_Y * TILE_SIZE) + ((SHEET_TILES_Y - 1) * TILE_SPACING) // 186
+
+	// Calculate UV coordinates for the specific tile
+	tile_pixel_x := tile_x * (TILE_SIZE + TILE_SPACING)
+	tile_pixel_y := tile_y * (TILE_SIZE + TILE_SPACING)
+
+	uv_left := f32(tile_pixel_x) / f32(SHEET_WIDTH)
+	uv_right := f32(tile_pixel_x + TILE_SIZE) / f32(SHEET_WIDTH)
+	uv_top := f32(tile_pixel_y) / f32(SHEET_HEIGHT)
+	uv_bottom := f32(tile_pixel_y + TILE_SIZE) / f32(SHEET_HEIGHT)
+
+	vertex_offset: u32 = 4 * sprite_index
+
+	vertex_top_left: ^VertexData = &vertices[vertex_offset]
+	vertex_top_left.position = {destination.world_pos_x, destination.world_pos_y, 0}
+	vertex_top_left.color = COLOR_WHITE
+	vertex_top_left.uv = {uv_left, uv_top}
+
+	vertex_top_right: ^VertexData = &vertices[vertex_offset + 1]
+	vertex_top_right.position = {
+		destination.world_pos_x + destination.width,
+		destination.world_pos_y,
+		0,
+	}
+	vertex_top_right.color = COLOR_WHITE
+	vertex_top_right.uv = {uv_right, uv_top}
+
+	vertex_bottom_left: ^VertexData = &vertices[vertex_offset + 2]
+	vertex_bottom_left.position = {
+		destination.world_pos_x,
+		destination.world_pos_y + destination.height,
+		0,
+	}
+	vertex_bottom_left.color = COLOR_WHITE
+	vertex_bottom_left.uv = {uv_left, uv_bottom}
+
+	vertex_bottom_right: ^VertexData = &vertices[vertex_offset + 3]
+	vertex_bottom_right.position = {
+		destination.world_pos_x + destination.width,
+		destination.world_pos_y + destination.height,
+		0,
+	}
+	vertex_bottom_right.color = COLOR_WHITE
+	vertex_bottom_right.uv = {uv_right, uv_bottom}
+
+	indices_offset: u32 = 6 * sprite_index
+	indices[indices_offset + 0] = vertex_offset + 0
+	indices[indices_offset + 1] = vertex_offset + 1
+	indices[indices_offset + 2] = vertex_offset + 2
+	indices[indices_offset + 3] = vertex_offset + 2
+	indices[indices_offset + 4] = vertex_offset + 1
+	indices[indices_offset + 5] = vertex_offset + 3
 }
 
 main :: proc() {
@@ -266,8 +286,6 @@ main :: proc() {
 	sdl.ReleaseGPUShader(gpu_device, gpu_fragment_shader)
 	log.debug("ODIN SURVIVORS | end Loading shaders")
 
-	//TODO should be 4 and other 6?
-
 
 	vertices_count := SPRITE_COUNT * 4
 	vertices := make([dynamic]VertexData, len = vertices_count, cap = vertices_count) //TODO howto use upfront capacity 
@@ -278,8 +296,6 @@ main :: proc() {
 	defer delete(vertices)
 	defer delete(indices)
 
-	draw_sprite(vertices[:], indices[:], {0, 0, 16, 16}, tile_x = 0, tile_y = 0, sprite_index = 0)
-	draw_sprite(vertices[:], indices[:], {50, 50, 16, 16}, tile_x = 8, tile_y = 8, sprite_index = 1)
 
 	vertices_byte_size := len(vertices) * size_of(vertices[0])
 	indices_byte_size := len(indices) * size_of(indices[0])
@@ -302,40 +318,27 @@ main :: proc() {
 		{usage = .UPLOAD, size = SPRITE_COUNT * u32(vertices_byte_size + indices_byte_size)},
 	)
 
+	draw_sprite(vertices[:], indices[:], {0, 0, 16, 16}, tile_x = 0, tile_y = 0, sprite_index = 0)
+	draw_sprite(
+		vertices[:],
+		indices[:],
+		{50, 50, 16, 16},
+		tile_x = 8,
+		tile_y = 8,
+		sprite_index = 1,
+	)
+
+
 	transfer_mem := cast([^]byte)sdl.MapGPUTransferBuffer(gpu_device, transfer_buffer, false)
 	mem.copy(transfer_mem, raw_data(vertices), vertices_byte_size)
 	mem.copy(transfer_mem[vertices_byte_size:], raw_data(indices), indices_byte_size)
 	sdl.UnmapGPUTransferBuffer(gpu_device, transfer_buffer)
 
 
-	//LOAD ATLAS
-	img_size: [2]i32
-	pixels := stbi.load("assets/spritesheet.png", &img_size.x, &img_size.y, nil, 4) //4 bytes based on format
-	pixels_byte_size := img_size.x * img_size.y * 4 //*4 bytes
-	gpu_texture := sdl.CreateGPUTexture(
-		gpu_device,
-		{
-			format = .R8G8B8A8_UNORM,
-			usage = {.SAMPLER},
-			width = u32(img_size.x),
-			height = u32(img_size.y),
-			layer_count_or_depth = 1,
-			num_levels = 1,
-		},
-	)
-
-	texture_transfer_buffer := sdl.CreateGPUTransferBuffer(
-		gpu_device,
-		{usage = .UPLOAD, size = u32(pixels_byte_size)},
-	)
-
-	texture_transfer_mem := sdl.MapGPUTransferBuffer(gpu_device, texture_transfer_buffer, false)
-	mem.copy(texture_transfer_mem, pixels, int(pixels_byte_size))
-	sdl.UnmapGPUTransferBuffer(gpu_device, texture_transfer_buffer)
+	gpu_texture := load_texture_and_upload_to_GPU(gpu_device)
 
 
 	copy_command_buffer := sdl.AcquireGPUCommandBuffer(gpu_device)
-
 	copy_pass := sdl.BeginGPUCopyPass(copy_command_buffer)
 
 	sdl.UploadToGPUBuffer(
@@ -352,16 +355,11 @@ main :: proc() {
 		false,
 	)
 
-	sdl.UploadToGPUTexture(
-		copy_pass,
-		{transfer_buffer = texture_transfer_buffer, offset = 0},
-		{texture = gpu_texture, w = u32(img_size.x), h = u32(img_size.y), d = 1},
-		false,
-	)
 
 	sdl.EndGPUCopyPass(copy_pass)
+
 	sdl.ReleaseGPUTransferBuffer(gpu_device, transfer_buffer)
-	sdl.ReleaseGPUTransferBuffer(gpu_device, texture_transfer_buffer)
+
 
 	gpu_sampler := sdl.CreateGPUSampler(
 		gpu_device,
@@ -582,7 +580,6 @@ render :: proc(
 	}
 	//get some command buffer from the gpu device
 	command_buffer := sdl.AcquireGPUCommandBuffer(gpu_device)
-	//FIXME delete or reuse commandbuffer?
 
 	//get some swapchain texture (aka Render Target)
 	swapchain_texture: ^sdl.GPUTexture
@@ -682,4 +679,59 @@ render :: proc(
 		return true
 	}
 	return false
+}
+
+@(private)
+@(require_results)
+load_texture_and_upload_to_GPU :: proc(gpu_device: ^sdl.GPUDevice) -> ^sdl.GPUTexture {
+	copy_buffer := sdl.AcquireGPUCommandBuffer(gpu_device)
+
+	copy_pass := sdl.BeginGPUCopyPass(copy_buffer)
+
+	//LOAD ATLAS and upload it to GPU (once)
+	img_size: [2]i32
+	pixels := stbi.load("assets/spritesheet.png", &img_size.x, &img_size.y, nil, 4) //4 bytes based on format
+	pixels_byte_size := img_size.x * img_size.y * 4 //*4 bytes
+	gpu_texture := sdl.CreateGPUTexture(
+		gpu_device,
+		{
+			format = .R8G8B8A8_UNORM,
+			usage = {.SAMPLER},
+			width = u32(img_size.x),
+			height = u32(img_size.y),
+			layer_count_or_depth = 1,
+			num_levels = 1,
+		},
+	)
+
+	texture_transfer_buffer := sdl.CreateGPUTransferBuffer(
+		gpu_device,
+		{usage = .UPLOAD, size = u32(pixels_byte_size)},
+	)
+
+	texture_transfer_mem := sdl.MapGPUTransferBuffer(gpu_device, texture_transfer_buffer, false)
+	mem.copy(texture_transfer_mem, pixels, int(pixels_byte_size))
+	sdl.UnmapGPUTransferBuffer(gpu_device, texture_transfer_buffer)
+	sdl.UploadToGPUTexture(
+		copy_pass,
+		{transfer_buffer = texture_transfer_buffer, offset = 0},
+		{texture = gpu_texture, w = u32(img_size.x), h = u32(img_size.y), d = 1},
+		false,
+	)
+
+	sdl.EndGPUCopyPass(copy_pass)
+	sdl.ReleaseGPUTransferBuffer(gpu_device, texture_transfer_buffer)
+
+	OK: bool = sdl.SubmitGPUCommandBuffer(copy_buffer)
+	if OK == false {
+		log.error(
+			"ODIN SURVIVORS | SDL_SubmitGPUCommandBuffer failed copying atlas texture: {}",
+			sdl.GetError(),
+		)
+		if (ODIN_DEBUG) {
+			assert(false)
+		}
+	}
+
+	return gpu_texture
 }
