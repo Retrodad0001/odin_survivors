@@ -63,74 +63,6 @@ Rect :: struct {
 	height:      f32,
 }
 
-draw_sprite :: proc(
-	vertices: []VertexData,
-	indices: []u32,
-	destination: Rect,
-	tile_x: u32,
-	tile_y: u32,
-	sprite_index: u32,
-) {
-	// Tilesheet constants
-	TILE_SIZE :: 16
-	TILE_SPACING :: 1
-	SHEET_TILES_X :: 12
-	SHEET_TILES_Y :: 11
-	SHEET_WIDTH :: (SHEET_TILES_X * TILE_SIZE) + ((SHEET_TILES_X - 1) * TILE_SPACING) // 203
-	SHEET_HEIGHT :: (SHEET_TILES_Y * TILE_SIZE) + ((SHEET_TILES_Y - 1) * TILE_SPACING) // 186
-
-	// Calculate UV coordinates for the specific tile
-	tile_pixel_x := tile_x * (TILE_SIZE + TILE_SPACING)
-	tile_pixel_y := tile_y * (TILE_SIZE + TILE_SPACING)
-
-	uv_left := f32(tile_pixel_x) / f32(SHEET_WIDTH)
-	uv_right := f32(tile_pixel_x + TILE_SIZE) / f32(SHEET_WIDTH)
-	uv_top := f32(tile_pixel_y) / f32(SHEET_HEIGHT)
-	uv_bottom := f32(tile_pixel_y + TILE_SIZE) / f32(SHEET_HEIGHT)
-
-	vertex_offset: u32 = 4 * sprite_index
-
-	vertex_top_left: ^VertexData = &vertices[vertex_offset]
-	vertex_top_left.position = {destination.world_pos_x, destination.world_pos_y, 0}
-	vertex_top_left.color = COLOR_WHITE
-	vertex_top_left.uv = {uv_left, uv_top}
-
-	vertex_top_right: ^VertexData = &vertices[vertex_offset + 1]
-	vertex_top_right.position = {
-		destination.world_pos_x + destination.width,
-		destination.world_pos_y,
-		0,
-	}
-	vertex_top_right.color = COLOR_WHITE
-	vertex_top_right.uv = {uv_right, uv_top}
-
-	vertex_bottom_left: ^VertexData = &vertices[vertex_offset + 2]
-	vertex_bottom_left.position = {
-		destination.world_pos_x,
-		destination.world_pos_y + destination.height,
-		0,
-	}
-	vertex_bottom_left.color = COLOR_WHITE
-	vertex_bottom_left.uv = {uv_left, uv_bottom}
-
-	vertex_bottom_right: ^VertexData = &vertices[vertex_offset + 3]
-	vertex_bottom_right.position = {
-		destination.world_pos_x + destination.width,
-		destination.world_pos_y + destination.height,
-		0,
-	}
-	vertex_bottom_right.color = COLOR_WHITE
-	vertex_bottom_right.uv = {uv_right, uv_bottom}
-
-	indices_offset: u32 = 6 * sprite_index
-	indices[indices_offset + 0] = vertex_offset + 0
-	indices[indices_offset + 1] = vertex_offset + 1
-	indices[indices_offset + 2] = vertex_offset + 2
-	indices[indices_offset + 3] = vertex_offset + 2
-	indices[indices_offset + 4] = vertex_offset + 1
-	indices[indices_offset + 5] = vertex_offset + 3
-}
-
 main :: proc() {
 	context.logger = log.create_console_logger()
 	log.debug("starting game")
@@ -306,87 +238,22 @@ main :: proc() {
 		gpu_device,
 		{usage = {.INDEX}, size = u32(indices_byte_size)},
 	)
-	defer sdl.ReleaseGPUBuffer(gpu_device,index_buffer)
+	defer sdl.ReleaseGPUBuffer(gpu_device, index_buffer)
 
 	//create the vertex buffer
-	sprite_data_buffer := sdl.CreateGPUBuffer(
+	vertex_buffer := sdl.CreateGPUBuffer(
 		gpu_device,
 		{usage = {.VERTEX}, size = SPRITE_COUNT * u32(vertices_byte_size)},
 	)
-	defer sdl.ReleaseGPUBuffer(gpu_device,sprite_data_buffer)
+	defer sdl.ReleaseGPUBuffer(gpu_device, vertex_buffer)
 
 	//upload the vertex data to GPU
 	transfer_buffer := sdl.CreateGPUTransferBuffer(
 		gpu_device,
 		{usage = .UPLOAD, size = SPRITE_COUNT * u32(vertices_byte_size + indices_byte_size)},
 	)
+	defer sdl.ReleaseGPUTransferBuffer(gpu_device, transfer_buffer)
 
-	draw_sprite(vertices[:], indices[:], {0, 0, 16, 16}, tile_x = 0, tile_y = 0, sprite_index = 0)
-	draw_sprite(
-		vertices[:],
-		indices[:],
-		{50, 50, 16, 16},
-		tile_x = 8,
-		tile_y = 8,
-		sprite_index = 1,
-	)
-
-
-	transfer_mem := cast([^]byte)sdl.MapGPUTransferBuffer(gpu_device, transfer_buffer, false)
-	mem.copy(transfer_mem, raw_data(vertices), vertices_byte_size)
-	mem.copy(transfer_mem[vertices_byte_size:], raw_data(indices), indices_byte_size)
-	sdl.UnmapGPUTransferBuffer(gpu_device, transfer_buffer)
-
-
-	
-
-	copy_command_buffer := sdl.AcquireGPUCommandBuffer(gpu_device)
-	copy_pass := sdl.BeginGPUCopyPass(copy_command_buffer)
-
-	sdl.UploadToGPUBuffer(
-		copy_pass,
-		{transfer_buffer = transfer_buffer},
-		{buffer = sprite_data_buffer, size = u32(vertices_byte_size)},
-		false,
-	)
-
-	sdl.UploadToGPUBuffer(
-		copy_pass,
-		{transfer_buffer = transfer_buffer, offset = u32(vertices_byte_size)},
-		{buffer = index_buffer, size = u32(indices_byte_size)},
-		false,
-	)
-
-
-	sdl.EndGPUCopyPass(copy_pass)
-
-	sdl.ReleaseGPUTransferBuffer(gpu_device, transfer_buffer)
-
-
-	gpu_sampler := sdl.CreateGPUSampler(
-		gpu_device,
-		{
-			min_filter = .NEAREST,
-			mag_filter = .NEAREST,
-			mipmap_mode = .NEAREST,
-			address_mode_u = .CLAMP_TO_EDGE,
-			address_mode_v = .CLAMP_TO_EDGE,
-			address_mode_w = .CLAMP_TO_EDGE,
-		},
-	)
-
-	defer sdl.ReleaseGPUSampler(gpu_device, gpu_sampler)
-
-	submit_command_buffer_OK: bool = sdl.SubmitGPUCommandBuffer(copy_command_buffer)
-	if submit_command_buffer_OK == false {
-		log.error(
-			"ODIN SURVIVORS | SDL_SubmitGPUCommandBuffer failed for copy vertices data: {}",
-			sdl.GetError(),
-		)
-		if (ODIN_DEBUG) {
-			assert(false)
-		}
-	}
 
 	vertex_attributes := []sdl.GPUVertexAttribute {
 		//POSITION_IN
@@ -465,6 +332,21 @@ main :: proc() {
 	TARGET_FRAME_TIME: u64 : 1000 / TARGET_FPS
 	last_ticks := sdl.GetTicks()
 
+
+	gpu_sampler := sdl.CreateGPUSampler(
+		gpu_device,
+		{
+			min_filter = .NEAREST,
+			mag_filter = .NEAREST,
+			mipmap_mode = .NEAREST,
+			address_mode_u = .CLAMP_TO_EDGE,
+			address_mode_v = .CLAMP_TO_EDGE,
+			address_mode_w = .CLAMP_TO_EDGE,
+		},
+	)
+
+	defer sdl.ReleaseGPUSampler(gpu_device, gpu_sampler)
+
 	GAME_LOOP: for {
 
 		new_ticks := sdl.GetTicks()
@@ -487,10 +369,15 @@ main :: proc() {
 			gpu_device,
 			window,
 			pipeline,
-			sprite_data_buffer,
-			index_buffer,
 			gpu_texture,
 			gpu_sampler,
+			vertices[:],
+			indices[:],
+			vertices_byte_size,
+			indices_byte_size,
+			transfer_buffer,
+			vertex_buffer,
+			index_buffer,
 		)
 
 		if should_quit_game {
@@ -511,48 +398,6 @@ main :: proc() {
 	}
 }
 
-@(private)
-@(require_results)
-handle_input :: proc(camera: ^Camera, delta_time: f32) -> bool {
-	should_quit: bool = false
-
-	input_event: sdl.Event
-	for sdl.PollEvent(&input_event) {
-
-		#partial switch input_event.type {
-		case .QUIT:
-			{
-				should_quit = true
-				continue
-			}
-		case .KEY_DOWN:
-			if input_event.key.scancode == .ESCAPE {
-				should_quit = true
-				continue
-			}
-
-			if input_event.key.scancode == .W || input_event.key.scancode == .UP {
-				camera.y += 1 * camera.speed * delta_time // Move up
-			} else if input_event.key.scancode == .S || input_event.key.scancode == .DOWN {
-				camera.y -= 1 * camera.speed * delta_time // Move down
-			} else if input_event.key.scancode == .A || input_event.key.scancode == .LEFT {
-				camera.x -= 1 * camera.speed * delta_time // Move left
-			} else if input_event.key.scancode == .D || input_event.key.scancode == .RIGHT {
-				camera.x += 1 * camera.speed * delta_time // Move right
-			}
-		}
-		//update zoom based on mouse wheel
-		if input_event.type == .MOUSE_WHEEL {
-			if input_event.wheel.y > 0 {
-				camera.zoom += camera.zoom_speed * delta_time // Zoom in
-			} else if input_event.wheel.y < 0 {
-				camera.zoom -= camera.zoom_speed * delta_time // Zoom out
-			}
-		}
-	}
-
-	return should_quit
-}
 
 @(private)
 game_update :: proc(delta_time: f32) {
@@ -567,24 +412,42 @@ render_stuff :: proc(
 	gpu_device: ^sdl.GPUDevice,
 	window: ^sdl.Window,
 	pipeline: ^sdl.GPUGraphicsPipeline,
-	sprite_data_buffer: ^sdl.GPUBuffer,
-	index_buffer: ^sdl.GPUBuffer,
 	gpu_texture: ^sdl.GPUTexture,
 	gpu_sampler: ^sdl.GPUSampler,
+	vertices: []VertexData,
+	indices: []u32,
+	vertices_byte_size: int,
+	indices_byte_size: int,
+	transfer_buffer: ^sdl.GPUTransferBuffer,
+	vertex_buffer: ^sdl.GPUBuffer,
+	index_buffer: ^sdl.GPUBuffer,
 ) -> bool {
 
-	//create the command buffer
-	if (gpu_device == nil) {
-		log.error("ODIN SURVIVORS | GPU device is nil")
-		if (ODIN_DEBUG) {
-			assert(false)
-		}
-		return true
-	}
-	//get some command buffer from the gpu device
+	clean_gpu_data(vertices[:], indices[:])
+
+	draw_sprite(vertices[:], indices[:], {0, 0, 16, 16}, tile_x = 0, tile_y = 0, sprite_index = 0)
+	draw_sprite(
+		vertices[:],
+		indices[:],
+		{50, 50, 16, 16},
+		tile_x = 8,
+		tile_y = 8,
+		sprite_index = 1,
+	)
+
+	end_batch(
+		gpu_device,
+		vertices[:],
+		indices[:],
+		vertices_byte_size,
+		indices_byte_size,
+		transfer_buffer,
+		vertex_buffer,
+		index_buffer,
+	)
+
 	command_buffer := sdl.AcquireGPUCommandBuffer(gpu_device)
 
-	//get some swapchain texture (aka Render Target)
 	swapchain_texture: ^sdl.GPUTexture
 	acquire_swapchain_texture_OK: bool = sdl.WaitAndAcquireGPUSwapchainTexture(
 		command_buffer,
@@ -633,7 +496,7 @@ render_stuff :: proc(
 		sdl.BindGPUVertexBuffers(
 			render_pass,
 			0,
-			&(sdl.GPUBufferBinding{buffer = sprite_data_buffer, offset = 0}),
+			&(sdl.GPUBufferBinding{buffer = vertex_buffer, offset = 0}),
 			1, //number of vertex buffers
 		)
 
@@ -643,14 +506,6 @@ render_stuff :: proc(
 		texture_binding := sdl.GPUTextureSamplerBinding {
 			texture = gpu_texture,
 			sampler = gpu_sampler,
-		}
-
-		//for each sprite add data
-		i := 2
-		for i < SPRITE_COUNT {
-
-
-			i += 1
 		}
 
 		sdl.BindGPUFragmentSamplers(render_pass, 0, &texture_binding, 1)
@@ -723,8 +578,8 @@ load_texture_and_upload_to_GPU :: proc(gpu_device: ^sdl.GPUDevice) -> ^sdl.GPUTe
 	)
 
 	sdl.EndGPUCopyPass(copy_pass)
-	
-	
+
+
 	OK: bool = sdl.SubmitGPUCommandBuffer(copy_buffer)
 	if OK == false {
 		log.error(
