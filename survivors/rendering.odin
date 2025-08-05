@@ -2,6 +2,7 @@ package survivors
 
 import "core:mem"
 import "core:log"
+import stbi "vendor:stb/image"
 
 import sdl "vendor:sdl3"
 
@@ -203,4 +204,60 @@ end_batch :: proc(
 			assert(false)
 		}
 	}
+}
+
+
+@(private)
+@(require_results)
+load_texture_and_upload_to_GPU :: proc(gpu_device: ^sdl.GPUDevice) -> ^sdl.GPUTexture {
+	copy_buffer := sdl.AcquireGPUCommandBuffer(gpu_device)
+	copy_pass := sdl.BeginGPUCopyPass(copy_buffer)
+
+	//LOAD ATLAS and upload it to GPU (once)
+	img_size: [2]i32
+	pixels := stbi.load("assets/spritesheet.png", &img_size.x, &img_size.y, nil, 4) //4 bytes based on format
+	pixels_byte_size := img_size.x * img_size.y * 4 //*4 bytes
+	gpu_texture := sdl.CreateGPUTexture(
+		gpu_device,
+		{
+			format = .R8G8B8A8_UNORM,
+			usage = {.SAMPLER},
+			width = u32(img_size.x),
+			height = u32(img_size.y),
+			layer_count_or_depth = 1,
+			num_levels = 1,
+		},
+	)
+
+	texture_transfer_buffer := sdl.CreateGPUTransferBuffer(
+		gpu_device,
+		{usage = .UPLOAD, size = u32(pixels_byte_size)},
+	)
+	defer sdl.ReleaseGPUTransferBuffer(gpu_device, texture_transfer_buffer)
+
+	texture_transfer_mem := sdl.MapGPUTransferBuffer(gpu_device, texture_transfer_buffer, false)
+	mem.copy(texture_transfer_mem, pixels, int(pixels_byte_size))
+	sdl.UnmapGPUTransferBuffer(gpu_device, texture_transfer_buffer)
+	sdl.UploadToGPUTexture(
+		copy_pass,
+		{transfer_buffer = texture_transfer_buffer, offset = 0},
+		{texture = gpu_texture, w = u32(img_size.x), h = u32(img_size.y), d = 1},
+		false,
+	)
+
+	sdl.EndGPUCopyPass(copy_pass)
+
+
+	OK: bool = sdl.SubmitGPUCommandBuffer(copy_buffer)
+	if OK == false {
+		log.error(
+			"ODIN SURVIVORS | SDL_SubmitGPUCommandBuffer failed copying atlas texture: {}",
+			sdl.GetError(),
+		)
+		if (ODIN_DEBUG) {
+			assert(false)
+		}
+	}
+
+	return gpu_texture
 }

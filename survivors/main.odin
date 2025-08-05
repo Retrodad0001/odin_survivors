@@ -5,30 +5,24 @@ import "core:log"
 import "core:math/linalg"
 import "core:mem"
 import sdl "vendor:sdl3"
-import stbi "vendor:stb/image"
 
 shader_code_fraq_text :: #load("..//fragment.spirv")
 shader_code_vert_text :: #load("..//vertex.spirv")
 
+TARGET_FPS: u64 : 60
+TARGET_FRAME_TIME: u64 : 1000 / TARGET_FPS
 SPRITE_COUNT :: 2
 COLOR_WHITE :: sdl.FColor{1, 1, 1, 1}
 COLOR_OTHER :: sdl.FColor{0, 1, 1, 1}
 COLOR_BLACK :: sdl.FColor{0, 0, 0, 0}
 
 //TODO rotate all soldier random direction
-//TODO draw sprite random every 4 seconds
-
 
 //TODO add debug info (pos entities, pos camera, camera zoom)
 
 //TODO add effect to only one enemy
 
-//TODO RemedyBG
-
-//TODO only draw stuff within camera
-
-//TODO integrate perf profiler spalt
-
+//TODO performance: only draw stuff within camera
 
 sdl_log :: proc "c" (
 	userdata: rawptr,
@@ -328,8 +322,7 @@ main :: proc() {
 
 	camera := camera_init()
 
-	TARGET_FPS: u64 : 60
-	TARGET_FRAME_TIME: u64 : 1000 / TARGET_FPS
+
 	last_ticks := sdl.GetTicks()
 
 
@@ -353,17 +346,16 @@ main :: proc() {
 		delta_time: f32 = f32(new_ticks - last_ticks) / 1000
 
 		should_quit_game := handle_input(&camera, delta_time)
-
 		if should_quit_game {
-			if (ODIN_DEBUG) {
-				log.debug("ODIN SURVIVORS | quitting game")
-			}
 			break GAME_LOOP
 		}
 
-		game_update(delta_time)
+		should_quit_game = game_update(delta_time)
+		if should_quit_game {
+			break GAME_LOOP
+		}
 
-		should_quit_game = render_stuff(
+		should_quit_game = draw(
 			&camera,
 			orthographic_projection,
 			gpu_device,
@@ -379,11 +371,7 @@ main :: proc() {
 			vertex_buffer,
 			index_buffer,
 		)
-
 		if should_quit_game {
-			if (ODIN_DEBUG) {
-				log.debug("ODIN SURVIVORS | quitting game")
-			}
 			break GAME_LOOP
 		}
 
@@ -400,13 +388,14 @@ main :: proc() {
 
 
 @(private)
-game_update :: proc(delta_time: f32) {
-
+@(require_results)
+game_update :: proc(delta_time: f32) -> bool {
+	return false
 }
 
 @(private)
 @(require_results)
-render_stuff :: proc(
+draw :: proc(
 	camera: ^Camera,
 	orthographic_projection: linalg.Matrix4x4f32,
 	gpu_device: ^sdl.GPUDevice,
@@ -467,12 +456,9 @@ render_stuff :: proc(
 		return true
 	}
 
-	// set max and min zoom limits
-	camera.zoom = clamp(camera.zoom, 0.1, camera.max_zoom)
-
 	// Create view matrix with camera position and zoom
 	view_camera_matrix :=
-		linalg.matrix4_scale_f32({camera.zoom, camera.zoom, 2}) *
+		linalg.matrix4_scale_f32({camera.zoom, camera.zoom, 0.02}) *
 		linalg.matrix4_translate_f32({-camera.x, -camera.y, 1})
 
 	ubo := UBO {
@@ -537,59 +523,4 @@ render_stuff :: proc(
 		return true
 	}
 	return false
-}
-
-@(private)
-@(require_results)
-load_texture_and_upload_to_GPU :: proc(gpu_device: ^sdl.GPUDevice) -> ^sdl.GPUTexture {
-	copy_buffer := sdl.AcquireGPUCommandBuffer(gpu_device)
-	copy_pass := sdl.BeginGPUCopyPass(copy_buffer)
-
-	//LOAD ATLAS and upload it to GPU (once)
-	img_size: [2]i32
-	pixels := stbi.load("assets/spritesheet.png", &img_size.x, &img_size.y, nil, 4) //4 bytes based on format
-	pixels_byte_size := img_size.x * img_size.y * 4 //*4 bytes
-	gpu_texture := sdl.CreateGPUTexture(
-		gpu_device,
-		{
-			format = .R8G8B8A8_UNORM,
-			usage = {.SAMPLER},
-			width = u32(img_size.x),
-			height = u32(img_size.y),
-			layer_count_or_depth = 1,
-			num_levels = 1,
-		},
-	)
-
-	texture_transfer_buffer := sdl.CreateGPUTransferBuffer(
-		gpu_device,
-		{usage = .UPLOAD, size = u32(pixels_byte_size)},
-	)
-	defer sdl.ReleaseGPUTransferBuffer(gpu_device, texture_transfer_buffer)
-
-	texture_transfer_mem := sdl.MapGPUTransferBuffer(gpu_device, texture_transfer_buffer, false)
-	mem.copy(texture_transfer_mem, pixels, int(pixels_byte_size))
-	sdl.UnmapGPUTransferBuffer(gpu_device, texture_transfer_buffer)
-	sdl.UploadToGPUTexture(
-		copy_pass,
-		{transfer_buffer = texture_transfer_buffer, offset = 0},
-		{texture = gpu_texture, w = u32(img_size.x), h = u32(img_size.y), d = 1},
-		false,
-	)
-
-	sdl.EndGPUCopyPass(copy_pass)
-
-
-	OK: bool = sdl.SubmitGPUCommandBuffer(copy_buffer)
-	if OK == false {
-		log.error(
-			"ODIN SURVIVORS | SDL_SubmitGPUCommandBuffer failed copying atlas texture: {}",
-			sdl.GetError(),
-		)
-		if (ODIN_DEBUG) {
-			assert(false)
-		}
-	}
-
-	return gpu_texture
 }
