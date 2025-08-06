@@ -6,8 +6,6 @@ MAX_ENTITIES: int : 1000
 @(private)
 EntityId :: distinct int
 
-
-
 @(private)
 Entity :: struct {
 	id:       EntityId,

@@ -1,7 +1,7 @@
 package survivors
 
-import "core:mem"
 import "core:log"
+import "core:mem"
 import stbi "vendor:stb/image"
 
 import sdl "vendor:sdl3"
@@ -81,6 +81,11 @@ draw_sprite :: proc(
 	tile_y: u32,
 	sprite_index: u32,
 ) {
+
+	if ODIN_DEBUG {
+		assert(sprite_index <= SPRITE_COUNT - 1, "sprite count should be higher")
+	}
+
 	// Tilesheet constants
 	TILE_SIZE :: 16
 	TILE_SPACING :: 1
@@ -167,8 +172,8 @@ end_batch :: proc(
 	vertices_byte_size: int,
 	indices_byte_size: int,
 	transfer_buffer: ^sdl.GPUTransferBuffer,
-	vertex_buffer:^sdl.GPUBuffer,
-	index_buffer:^sdl.GPUBuffer,
+	vertex_buffer: ^sdl.GPUBuffer,
+	index_buffer: ^sdl.GPUBuffer,
 ) {
 	transfer_mem := cast([^]byte)sdl.MapGPUTransferBuffer(gpu_device, transfer_buffer, false)
 	mem.copy(transfer_mem, raw_data(vertices), vertices_byte_size)

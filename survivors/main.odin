@@ -11,7 +11,9 @@ shader_code_vert_text :: #load("..//vertex.spirv")
 
 TARGET_FPS: u64 : 60
 TARGET_FRAME_TIME: u64 : 1000 / TARGET_FPS
-SPRITE_COUNT :: 2
+
+SPRITE_COUNT :: 1000
+
 COLOR_WHITE :: sdl.FColor{1, 1, 1, 1}
 COLOR_OTHER :: sdl.FColor{0, 1, 1, 1}
 COLOR_BLACK :: sdl.FColor{0, 0, 0, 0}
@@ -422,6 +424,22 @@ draw :: proc(
 		tile_x = 8,
 		tile_y = 8,
 		sprite_index = 1,
+	)
+	draw_sprite(
+		vertices[:],
+		indices[:],
+		{150, 50, 16, 16},
+		tile_x = 10,
+		tile_y = 8,
+		sprite_index = 2,
+	)
+	draw_sprite(
+		vertices[:],
+		indices[:],
+		{10, 100, 16, 16},
+		tile_x = 2,
+		tile_y = 2,
+		sprite_index = 666,
 	)
 
 	end_batch(
