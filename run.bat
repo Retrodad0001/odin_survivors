@@ -3,7 +3,7 @@ echo off
 cls
 odin version
 
-set OUT_DIR=build\debug\win64
+set OUT_DIR=build\debug\windows\x86
 
 echo Delete all previous compiled shader files
 del /q "fragment.spirv"

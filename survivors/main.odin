@@ -18,6 +18,15 @@ COLOR_WHITE :: sdl.FColor{1, 1, 1, 1}
 COLOR_OTHER :: sdl.FColor{0, 1, 1, 1}
 COLOR_BLACK :: sdl.FColor{0, 0, 0, 0}
 
+//TODO other theme and see vid with nice tips
+
+//show build error in editor and jump with f4
+
+//TODO setup spall --> test in another project
+//input
+//update_render
+//sound
+
 //TODO rotate all soldier random direction
 
 //TODO add debug info (pos entities, pos camera, camera zoom)
@@ -114,7 +123,6 @@ main :: proc() {
 		sdl.SetLogPriorities(sdl.LogPriority.WARN)
 	}
 
-	//initialize SDL
 	SDL_INIT_FLAGS :: sdl.INIT_VIDEO
 	if (sdl.Init(SDL_INIT_FLAGS)) == false {
 		log.error("ODIN SURVIVORS | SDL_Init failed: {}", sdl.GetError())
@@ -125,7 +133,6 @@ main :: proc() {
 	}
 	defer sdl.Quit()
 
-	//create window
 	INIT_WINDOWS_WIDTH :: 1024 //TODO add issue detect unused constants in strict mode
 	INIT_WINDOWS_HEIGHT :: 768
 	window_flags: sdl.WindowFlags
@@ -177,7 +184,6 @@ main :: proc() {
 	}
 
 	//SHADER SETUP
-
 	log.debug("ODIN SURVIVORS | start Loading shaders")
 	gpu_vertex_shader: ^sdl.GPUShader = load_shader(
 		shader_code_vert_text,
