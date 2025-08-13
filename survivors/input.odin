@@ -1,9 +1,13 @@
 package survivors
 
+import "core:prof/spall"
+
 import sdl "vendor:sdl3"
 
 @(require_results)
 handle_input :: proc(camera: ^Camera, delta_time: f32) -> bool {
+	spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, #procedure)
+
 	should_quit: bool = false
 
 	input_event: sdl.Event

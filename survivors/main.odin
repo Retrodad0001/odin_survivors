@@ -4,7 +4,13 @@ import "base:runtime"
 import "core:log"
 import "core:math/linalg"
 import "core:mem"
+import "core:prof/spall"
+import "core:sync"
+
 import sdl "vendor:sdl3"
+
+spall_ctx: spall.Context
+@(thread_local) spall_buffer: spall.Buffer
 
 shader_code_fraq_text :: #load("..//fragment.spirv")
 shader_code_vert_text :: #load("..//vertex.spirv")
@@ -18,9 +24,6 @@ COLOR_WHITE :: sdl.FColor{1, 1, 1, 1}
 COLOR_OTHER :: sdl.FColor{0, 1, 1, 1}
 COLOR_BLACK :: sdl.FColor{0, 0, 0, 0}
 
-//TODO other theme and see vid with nice tips
-
-//show build error in editor and jump with f4
 
 //TODO setup spall --> test in another project
 //input
@@ -71,6 +74,17 @@ Rect :: struct {
 main :: proc() {
 	context.logger = log.create_console_logger()
 	log.debug("starting game")
+
+	spall_ctx = spall.context_create("trace_test.spall")
+	defer spall.context_destroy(&spall_ctx)
+
+	buffer_backing := make([]u8, spall.BUFFER_DEFAULT_SIZE)
+	defer delete(buffer_backing)
+
+	spall_buffer = spall.buffer_create(buffer_backing, u32(sync.current_thread_id()))
+	defer spall.buffer_destroy(&spall_ctx, &spall_buffer)
+
+	spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, #procedure)
 
 	if (ODIN_DEBUG) {
 		log.debug("ODIN SURVIVORS | OS USED : " + ODIN_OS_STRING)
@@ -349,7 +363,8 @@ main :: proc() {
 	defer sdl.ReleaseGPUSampler(gpu_device, gpu_sampler)
 
 	GAME_LOOP: for {
-
+		spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "GAMELOOP")
+		
 		new_ticks := sdl.GetTicks()
 		delta_time: f32 = f32(new_ticks - last_ticks) / 1000
 
@@ -398,6 +413,7 @@ main :: proc() {
 @(private)
 @(require_results)
 game_update :: proc(delta_time: f32) -> bool {
+	spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, #procedure)
 	return false
 }
 
@@ -420,6 +436,7 @@ draw :: proc(
 	index_buffer: ^sdl.GPUBuffer,
 ) -> bool {
 
+	spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, #procedure)
 	clean_gpu_data(vertices[:], indices[:])
 
 	draw_sprite(vertices[:], indices[:], {0, 0, 16, 16}, tile_x = 0, tile_y = 0, sprite_index = 0)
